@@ -178,6 +178,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
     <main>
       <div class="bar"><span id="count"></span><span data-t="hint"></span></div>
+      <div class="bar" id="other" hidden></div>
       <div class="tablewrap">
         <table>
           <thead id="headX" hidden><tr>
@@ -227,6 +228,7 @@ const UI = {
     sortsX: { "locs:desc": "Больше всего локаций", "name:asc": "Название — А→Я", "rankLevel:desc": "Ранг — по убыванию",
       "nadv:desc": "Страновых улучшений — больше", "cont:asc": "Континент", "cul:asc": "Культура" },
     fixedNote: "У этой страны нет тира: её нет в списке формируемых, поэтому сформировать её нельзя — можно только играть за неё с начала.",
+    otherFound: (n, fx) => `Ещё ${n} в списке «${fx ? "формируемые" : "нельзя сформировать"}»`, otherShow: "Показать",
     twinBadge: t => `≠ формируемая ${t}`, twinOpen: "Открыть",
     twinFixedNote: (n, t) => `Не путать с формируемой страной «${n}» (${t}) — это другой тег с тем же названием.`,
     twinFormNote: t => `Не путать со стартовой страной ${t} с тем же названием — её сформировать нельзя.`,
@@ -266,6 +268,7 @@ const UI = {
     sortsX: { "locs:desc": "Most locations", "name:asc": "Name, A to Z", "rankLevel:desc": "Rank, high to low",
       "nadv:desc": "Most country advances", "cont:asc": "Continent", "cul:asc": "Culture" },
     fixedNote: "This nation has no tier: it isn't in the formable list, so it can't be formed. You can only play it from the start.",
+    otherFound: (n, fx) => `${n} more in the ${fx ? "formable" : "can't be formed"} list`, otherShow: "Show",
     twinBadge: t => `≠ formable ${t}`, twinOpen: "Open",
     twinFixedNote: (n, t) => `Not the same as the formable nation ${n} (${t}): a different tag with the same name.`,
     twinFormNote: t => `Not the same as the starting nation ${t} with the same name, which can't be formed.`,
@@ -400,6 +403,11 @@ function render() {
   const t = u();
   const list = filtered();
   $("#count").textContent = t.shown(list.length, curList().length);
+  const q = state.q.trim().toLowerCase();
+  const other = q ? (fixedMode() ? items : (DATA.fixed || [])).filter(i => i.hay.includes(q)) : [];
+  $("#other").hidden = !other.length;
+  if (other.length) $("#other").innerHTML = `<span>${esc(t.otherFound(other.length, fixedMode()))}: ${other.slice(0, 5).map(i => esc(i.name)).join(", ")}${other.length > 5 ? "…" : ""}</span>
+    <button type="button" class="dbtn" id="otherBtn">${esc(t.otherShow)}</button>`;
   $("#empty").textContent = t.empty;
   $("#empty").hidden = list.length > 0;
   if (fixedMode()) {
@@ -537,6 +545,7 @@ $("#rows").addEventListener("keydown", e => { if (e.key === "Enter") { const tr 
 $("#q").addEventListener("input", e => { state.q = e.target.value; render(); });
 $("#cont").addEventListener("change", e => { state.cont = e.target.value; render(); });
 $("#sort").addEventListener("change", e => { setSort(e.target.value); render(); });
+$("#other").addEventListener("click", e => { if (e.target.closest("#otherBtn")) $("#fixedBtn").click(); });
 $("#fixedBtn").addEventListener("click", () => {
   state.mode = fixedMode() ? "f" : "x"; state.cont = ""; $("#cont").value = "";
   if (state.sel) closeDetail();
