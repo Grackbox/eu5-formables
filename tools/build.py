@@ -73,7 +73,7 @@ EN = {
     "Выходит из международной организации": "Leaves an international organization",
     "Меняет уровень интеграции локаций": "Changes the integration level of locations",
     "Сдвигает общественную ценность: {}": "Shifts societal value: {}",
-    "Только событием": "Event only", "Стабильность": "Stability", "Сила правительства": "Government power",
+    "Только событием": "Event only", "диалект": "dialect", "Стабильность": "Stability", "Сила правительства": "Government power",
     "Легитимность": "Legitimacy", "Престиж": "Prestige",
     "Отряд": "Unit", "Здание": "Building", "Ополчение": "Levy", "Закон": "Law", "Городское право": "Town right",
     "Реформа правления": "Government reform", "Действие кабинета": "Cabinet action", "Способ производства": "Production method",
@@ -780,11 +780,13 @@ def build_lang(lang):
                 unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
             elif kk in mod_types:
                 bonuses.append(mod_line(kk, vv))
-        extra = [(a, b, c) for a, b, c in pot if cul_eval([(a, b, c)], all_cultures[0]) is None
-                 and not (a and TAG_RE.match(a))]
+        # culture conditions are what the list itself shows; keep only the other conditions
+        extra = [(a, b, c) for a, b, c in pot if not _mentions_culture([(a, b, c)]) and not (a and TAG_RE.match(a))
+                 and "merged_culture_group_contains_culture" not in repr(c)]
+        gk = sorted(set(re.findall(r"culture_group:(\w+)", repr(pot))))  # granted through a culture group
         cadv[k] = {"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
                    "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
-                   "cond": trig_list(extra), "d": L(k + "_desc", "")}
+                   "cond": trig_list(extra), "d": L(k + "_desc", ""), "gk": gk, "grp": [adj(g) for g in gk]}
     forms_by_culture = {}
     for fid, cs in formable_cultures.items():
         for c in cs:
@@ -796,13 +798,20 @@ def build_lang(lang):
         color = info.get("color")
         lang_key = dialect_lang.get(info.get("dialect"))
         cultures.append({
-            "id": "cul." + c, "key": c, "name": adj(c),
+            "id": "cul." + c, "key": c, "name": adj(c), "gk": info["groups"],
             "groups": [adj(g) for g in info["groups"]], "lang": adj(lang_key, lang_word=True) if lang_key else "",
+            "dia": (adj(info["dialect"], lang_word=True) + " " + T("диалект")) if info.get("dialect") and info.get("dialect") != lang_key else "",
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
             "adv": advs, "nadv": len(advs), "forms": forms_by_culture.get(c, []), "st": sorted(start_by_culture.get(c, [])),
         })
     cultures.sort(key=lambda x: (-x["nadv"], x["name"]))
-    return {"lang": lang, "items": items, "fixed": fixed, "cultures": cultures, "cadv": cadv, "ranks": ranks, "version": VERSION}
+    group_keys = sorted({g for c in culture_info.values() for g in c["groups"]})
+    groups = []
+    for g in group_keys:
+        members_ = [c for c in all_cultures if g in culture_info[c]["groups"]]
+        gadv = sorted([a for a, x in cadv.items() if g in x["gk"]], key=lambda a: (cadv[a]["age"], cadv[a]["n"]))
+        groups.append({"id": "grp." + g, "key": g, "name": adj(g), "cultures": members_, "adv": gadv})
+    return {"lang": lang, "items": items, "fixed": fixed, "cultures": cultures, "groups": groups, "cadv": cadv, "ranks": ranks, "version": VERSION}
 
 
 # ================================================================ output
