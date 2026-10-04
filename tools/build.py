@@ -218,6 +218,11 @@ for f in glob.glob(G + "in_game/common/advances/*.txt"):
             for tg in tags_in(get(v, "potential") or []):
                 adv_src.setdefault(tg, []).append((k, v))
 
+# Tags that already exist (own locations) at the 1337 start; they can't be formed while they exist.
+_setup = get(get(P(G + "main_menu/setup/1337/10_countries.txt"), "countries") or [], "countries") or []
+start_tags = {k for k, _, v in _setup if k and isinstance(v, list) and
+              any(kk and kk.startswith("own") and isinstance(vv, list) and vv for kk, _, vv in v)}
+
 formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
              if fid and isinstance(b, list)]
 
@@ -521,7 +526,7 @@ def build_lang(lang):
             "cont": L(cont[0][0], cont[0][0]) if cont else (T("Только событием") if by_event else "—"),
             "pot": trig_list(pot_raw), "allow": trig_list(get(b, "allow") or []), "eff": effect,
             "ranks": sorted(set(re.findall(r'"k": "rank:(\w+)"', json.dumps(effect, ensure_ascii=False)))),
-            "event": by_event, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
+            "event": by_event, "start": tag in start_tags, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
         })
     items.sort(key=lambda x: (-x["level"], x["name"]))
     return {"lang": lang, "items": items, "ranks": ranks, "version": VERSION}

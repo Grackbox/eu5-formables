@@ -164,7 +164,8 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
   <div class="layout">
     <aside id="filters">
       <div class="fgroup"><label class="ftitle" for="q" data-t="search"></label><input type="search" id="q"></div>
-      <div class="fgroup"><span class="ftitle" data-t="tier"></span><div class="chips" id="tiers"></div></div>
+      <div class="fgroup"><span class="ftitle" data-t="tier"></span><div class="chips" id="tiers"></div>
+        <div class="chips" style="margin-top:6px"><button type="button" class="chip" id="startChip" aria-pressed="false"></button></div></div>
       <div class="fgroup"><span class="ftitle" data-t="rule"></span><div class="chips" id="rules"></div></div>
       <div class="fgroup"><label class="ftitle" for="cont" data-t="continent"></label><select id="cont"></select></div>
       <div class="fgroup">
@@ -202,7 +203,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "e263424c3d"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "4bf20b9eb0"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -221,7 +222,9 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
-    tierChip: (l, n) => `Тир ${l} · ${n}`, locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
+    tierChip: (l, n) => `Тир ${l} · ${n}`, startChip: n => `Стартовые страны · ${n}`, startBadge: "есть на старте",
+    startHint: "Страны, которые уже существуют в 1337 году. Сформировать такую страну можно, только если её нет.",
+    startNote: "Эта страна уже существует на старте 1337 года. Сформировать её можно, только если её не станет.", locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
     special: "особые эффекты", variant: "вариант",
     helpTitle: "Что такое тир, правило и бонусы ранга",
     help: `<p><b>Тир</b> — уровень формируемой страны (<code>level</code>, от 1 до 5). Сформировать можно только страну более высокого тира, чем текущая.</p>
@@ -250,7 +253,9 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
-    tierChip: (l, n) => `Tier ${l} · ${n}`, locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
+    tierChip: (l, n) => `Tier ${l} · ${n}`, startChip: n => `Starting nations · ${n}`, startBadge: "exists at start",
+    startHint: "Nations that already exist in 1337. You can only form one while it doesn't exist.",
+    startNote: "This nation already exists at the 1337 start. You can only form it once it no longer exists.", locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
     special: "special effects", variant: "variant",
     helpTitle: "What tier, rule and rank bonuses mean",
     help: `<p><b>Tier</b> is the formable's level (<code>level</code>, 1 to 5). You can only form a nation of a higher tier than your current one.</p>
@@ -285,7 +290,7 @@ const u = () => UI[lang] || UI.english;
 let DATA = null, items = [];
 const cache = {};
 const state = { q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
-  fAdv: false, fNoEvent: false, sort: "level:desc", sel: null };
+  fAdv: false, fNoEvent: false, showStart: false, sort: "level:desc", sel: null };
 
 async function loadLang(l) {
   if (EMBED && EMBED[l]) return EMBED[l];
@@ -329,6 +334,9 @@ function paintChrome() {
   const levels = [...new Set(items.map(i => i.level))].sort();
   chips($("#tiers"), levels, l => t.tierChip(l, items.filter(i => i.level === l).length), state.tiers);
   chips($("#rules"), Object.keys(t.rules), r => t.rules[r], state.rules);
+  $("#startChip").textContent = t.startChip(items.filter(i => i.start).length);
+  $("#startChip").title = t.startHint;
+  $("#startChip").setAttribute("aria-pressed", String(state.showStart));
   const conts = [...new Set(items.map(i => i.cont))].sort((a, b) => a.localeCompare(b));
   if (!conts.includes(state.cont)) state.cont = "";
   $("#cont").innerHTML = `<option value="">${esc(t.all)}</option>` + conts.map(c => `<option${c === state.cont ? " selected" : ""}>${esc(c)}</option>`).join("");
@@ -342,7 +350,7 @@ function filtered() {
   const out = items.filter(i =>
     (!q || i.hay.includes(q)) && (!state.tiers.size || state.tiers.has(i.level)) && (!state.rules.size || state.rules.has(i.rule)) &&
     (!state.cont || i.cont === state.cont) && (!state.fRank || i.ranks.length) && (!state.fEff || i.eff.length) &&
-    (!state.fCap || !i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv));
+    (!state.fCap || !i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv) && (state.showStart || !i.start));
   const [k, dir] = state.sort.split(":");
   const m = dir === "desc" ? -1 : 1;
   const key = i => k === "rank" ? i.rankLevel : i[k];
@@ -371,7 +379,7 @@ function render() {
   $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div>
-        <div class="tag">${esc(i.tag)}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
+        <div class="tag">${esc(i.tag)}${i.start ? `<span class="variant">${esc(t.startBadge)}</span>` : ""}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
       <td><span class="tier t${i.level}">${i.level}</span></td>
       <td><span class="rule">${esc(t.rules[i.rule] || i.rule)}</span></td>
       <td>${esc(i.cont)}</td>
@@ -419,6 +427,7 @@ function openDetail(id, push = true) {
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
       <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
       <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
+    ${i.start ? `<p class="gilt" style="white-space:normal">${esc(t.startNote)}</p>` : ""}
     ${i.desc ? `<p class="desc clamp" title="${esc(t.descr)}">${esc(i.desc)}</p>` : ""}
     <div class="cards">
       ${advances(i)}
@@ -467,6 +476,9 @@ $("#tiers").addEventListener("click", e => { const b = e.target.closest(".chip")
   state.tiers.has(v) ? state.tiers.delete(v) : state.tiers.add(v); b.setAttribute("aria-pressed", state.tiers.has(v)); render(); });
 $("#rules").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; const v = b.dataset.v;
   state.rules.has(v) ? state.rules.delete(v) : state.rules.add(v); b.setAttribute("aria-pressed", state.rules.has(v)); render(); });
+$("#startChip").addEventListener("click", () => {
+  state.showStart = !state.showStart; $("#startChip").setAttribute("aria-pressed", String(state.showStart)); render();
+});
 $("#rows").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) openDetail(tr.dataset.id); });
 $("#rows").addEventListener("keydown", e => { if (e.key === "Enter") { const tr = e.target.closest("tr"); if (tr) openDetail(tr.dataset.id); } });
 $("#q").addEventListener("input", e => { state.q = e.target.value; render(); });
@@ -482,7 +494,8 @@ document.querySelectorAll("th").forEach(th => th.addEventListener("click", () =>
   render();
 }));
 $("#reset").addEventListener("click", () => {
-  state.q = ""; state.tiers.clear(); state.rules.clear(); state.cont = "";
+  state.q = ""; state.tiers.clear(); state.rules.clear(); state.cont = ""; state.showStart = false;
+  $("#startChip").setAttribute("aria-pressed", "false");
   FLAGS.forEach(f => { state[f] = false; $("#" + f).checked = false; });
   $("#q").value = ""; $("#cont").value = "";
   document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
