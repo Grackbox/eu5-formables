@@ -99,7 +99,7 @@ def clean(s, loc, depth=0):
     s = re.sub(r"#ONCLICK:\S*\s?", "", s)
     s = re.sub(r"#TOOLTIP:[^,]*,[^,]*,X\s?", "", s)
     s = re.sub(r'#[A-Za-z_]+(?:;[A-Za-z_]+)* ?', '', s)
-    s = s.replace('#!', '').replace('\\n', ' ')
+    s = s.replace('#!', '').replace('\\n', ' ').replace('�', '')  # one broken character in the game's braz_por text
     s = re.sub(r'@[A-Za-z_]+!', '', s)
     s = re.sub(r'\[[^\]]*\]', '…', s)
     return re.sub(r'\s+', ' ', s).strip()
