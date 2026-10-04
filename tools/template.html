@@ -142,7 +142,8 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 .adv > * { min-width: 0; }
 .adv .an { font-weight: 600; }
 .adv .ab { display: flex; flex-wrap: wrap; gap: 0 12px; }
-.adv .ab .b { color: var(--good); } .adv .ab .u { color: var(--gilt); }
+.adv .ab .b { color: var(--good); }
+.adv .ab .um { flex-basis: 100%; font-size: 12.5px; color: var(--good); padding-left: 12px; } .adv .ab .u { color: var(--gilt); }
 .adv .side { font-size: 12px; color: var(--ink-2); text-align: right; }
 .adv .side ul.tree { display: inline-block; text-align: left; }
 .adv .side ul.tree li { margin: 0; }
@@ -245,7 +246,7 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
-    fAdvC: "Есть культурные улучшения", grpBadge: n => `группа: ${n}`,
+    fAdvC: "Есть культурные улучшения", inLoc: "в локации", inCountry: "для страны", grpBadge: n => `группа: ${n}`,
     grpTitle: n => `Общие улучшения группы · ${n}`, grpNote: "Их получает любая культура этой группы.",
     grpNone: "У этой группы нет общих улучшений: улучшения её культур привязаны к отдельным культурам.",
     grpCultures: n => `Культуры группы · ${n}`, grpShow: "Показать культуры группы в таблице", grpKind: "Группа культур",
@@ -304,7 +305,7 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
-    fAdvC: "Has culture advances", grpBadge: n => `group: ${n}`,
+    fAdvC: "Has culture advances", inLoc: "in the location", inCountry: "for the country", grpBadge: n => `group: ${n}`,
     grpTitle: n => `Shared group advances · ${n}`, grpNote: "Every culture in this group gets these.",
     grpNone: "This group has no shared advances: its cultures' advances belong to individual cultures.",
     grpCultures: n => `Cultures in the group · ${n}`, grpShow: "Show the group's cultures in the table", grpKind: "Culture group",
@@ -526,8 +527,20 @@ function tree(nodes) {
   if (!nodes || !nodes.length) return "";
   return `<ul class="tree">${nodes.map(n => {
     const k = (n.k || "").startsWith("rank:") ? "rank" : (n.k || "plain");
-    return `<li class="k-${k}"><span>${esc(n.t)}</span>${tree(n.c)}</li>`;
+    const label = !n.r ? `<span>${esc(n.t)}</span>`
+      : n.r.startsWith("lang:") ? `<span><button type="button" class="cellbtn" data-lang="${esc(n.r.slice(5))}">${esc(n.t)}</button></span>`
+      : `<span><button type="button" class="cellbtn" data-open="${esc(n.r)}">${esc(n.t)}</button></span>`;
+    return `<li class="k-${k}">${label}${tree(n.c)}</li>`;
   }).join("")}</ul>`;
+}
+
+function unlockHtml(x) {
+  const t = u();
+  if (typeof x === "string") return `<span class="u">${esc(t.unlocks)}: ${esc(x)}</span>`;
+  const parts = [];
+  if (x.loc && x.loc.length) parts.push(`<span class="muted">${esc(t.inLoc)}:</span> ${x.loc.map(esc).join(", ")}`);
+  if (x.m && x.m.length) parts.push(`${x.loc && x.loc.length ? `<span class="muted">${esc(t.inCountry)}:</span> ` : ""}${x.m.map(esc).join(", ")}`);
+  return `<span class="u">${esc(t.unlocks)}: ${esc(x.t)}</span>${parts.length ? `<span class="um">${parts.join(" · ")}</span>` : ""}`;
 }
 
 function principles(i) {
@@ -612,7 +625,7 @@ function advances(i, title, note) {
     Object.keys(byAge).sort((a, b) => a - b).map(age => `<div class="age"><span class="roman">${ROMAN[age] || age}</span>${esc(UI[lang] ? t.age(byAge[age][0].ageN) : byAge[age][0].ageN)}</div>` +
       byAge[age].map(a => `<div class="adv">
         <div><div class="an">${esc(a.n)}${(a.gk || []).map((g, n) => `<button type="button" class="grpbadge" data-open="grp.${esc(g)}">${esc(t.grpBadge(a.grp[n]))}</button>`).join("")}</div>
-          <div class="ab">${a.b.map(b => `<span class="b">${esc(b)}</span>`).join("")}${a.u.map(x => `<span class="u">${esc(t.unlocks)}: ${esc(x)}</span>`).join("")}</div></div>
+          <div class="ab">${a.b.map(b => `<span class="b">${esc(b)}</span>`).join("")}${a.u.map(x => unlockHtml(x)).join("")}</div></div>
         <div class="side"><div>${a.req.length ? `${esc(t.requires)}: ${a.req.map(esc).join(", ")}` : ""}${a.req.length && a.d ? " · " : ""}${a.d ? `<button type="button" class="dbtn" aria-expanded="false">${esc(t.descr)}</button>` : ""}</div>
           ${a.cond.length === 1 && !a.cond[0].c ? `<div class="${a.cond[0].k === "orig" ? "orig" : ""}">${esc(t.extra)} ${esc(a.cond[0].t)}</div>` : a.cond.length ? `<div>${esc(t.extra)}</div>${tree(a.cond)}` : ""}</div>
         ${a.d ? `<div class="ad" hidden>${esc(a.d)}</div>` : ""}</div>`).join("")).join("") + `</div>`;

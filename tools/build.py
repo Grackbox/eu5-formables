@@ -58,6 +58,7 @@ EN = {
     "Сила сословия «{}» {} {}": "{} estate power {} {}", "Есть правитель": "Has a ruler", "Нет правителя": "Has no ruler",
     "Субъект страны {}": "Subject of {}", "В унии со страной {}": "In a union with {}",
     "Только если начали за {}": "Only if you started as {}",
+    "Объединённая группа включает культуру {}": "Merged culture group includes {}",
     "Есть переменная «{}» (событие/решение)": "Has variable “{}” (event/decision)", "Год {} {}": "Year {} {}",
     "Существует: {}": "Exists: {}", "Регион: {}": "Region: {}",
     "НЕ ": "NOT ", "да": "yes", "нет": "no",
@@ -80,7 +81,7 @@ EN = {
     "Привилегия сословия": "Estate privilege", "Политика": "Policy", "Тип субъекта": "Subject type",
     "Рыцарский орден": "Chivalric order", "Наследование": "Heir selection", "Повод к войне": "Casus belli",
     "Тип дорог": "Road type", "Дипломатия": "Diplomacy", "Способность": "Ability", "Взаимодействие": "Interaction",
-    "Континенты": "Continents", "Субконтиненты": "Subcontinents", "Регионы": "Regions", "Области": "Areas",
+    "в локации": "in the location", "Континенты": "Continents", "Субконтиненты": "Subcontinents", "Регионы": "Regions", "Области": "Areas",
     "Провинции": "Provinces", "Локации": "Locations",
 }
 
@@ -249,6 +250,18 @@ for kind, pattern in (("decision", "in_game/common/decisions/*.txt"), ("advance"
                 _unlock_targets(v, found)
                 for r in found:
                     reform_unlockers.setdefault(r, []).append((kind, k))
+
+# What unlockable things give, so "Unlocks: X" can show X's modifiers.
+town_right_defs = {}
+for f in glob.glob(G + "in_game/common/town_rights/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            town_right_defs[k] = v
+reform_defs = {}
+for f in glob.glob(G + "in_game/common/government_reforms/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            reform_defs[k] = v
 
 adv_src = {}  # tag -> [(id, block)]
 for f in glob.glob(G + "in_game/common/advances/*.txt"):
@@ -450,8 +463,10 @@ def ref(v):
     return L(key, key)
 
 
-def node(text, children=None, kind=None):
+def node(text, children=None, kind=None, link=None):
     n = {"t": text}
+    if link:
+        n["r"] = link  # "cul.<key>", "grp.<key>" or "lang:<name>": the page turns these into links
     if children:
         n["c"] = children
     if kind:
@@ -514,7 +529,13 @@ def trig(k, op, v):
     if k == "culture" and isinstance(v, list):
         return node(pre + T("Основная культура:"), trig_list(v), "group")
     if k == "culture":
-        return node(pre + T("Основная культура: {}", ref(v)))
+        return node(pre + T("Основная культура: {}", ref(v)), None, None, "cul." + _strip(v, "culture"))
+    if k == "merged_culture_group_contains_culture" and isinstance(v, str):
+        return node(pre + T("Объединённая группа включает культуру {}", ref(v)), None, None, "cul." + _strip(v, "culture"))
+    if k == "has_culture_group" and isinstance(v, str):
+        return node(pre + T("Группа культур: {}", ref(v)), None, None, "grp." + _strip(v, "culture_group"))
+    if k in ("culture.language", "language") and isinstance(v, str):
+        return node(pre + T("Язык культуры: {}", ref(v)), None, None, "lang:" + ref(v))
     if k == "any_primary_or_accepted_or_tolerated_culture":
         return node(T("Любая основная, принятая или терпимая культура:"),
                     trig_list(v) if isinstance(v, list) else [node(ref(v))], "group")
@@ -644,6 +665,22 @@ def eff(k, op, v):
     return node(f"{L(k, k)}{'' if v == 'yes' else ' = ' + ref(v)}", None, "raw")
 
 
+def _mods(block):
+    return [mod_line(a, b) for a, _, b in (block or []) if a and a != "potential_trigger" and isinstance(b, str)]
+
+
+def unlock_entry(kind, key):
+    """{"t": "Town right: X", "m": [modifier lines], "loc": [local modifier lines]} for an unlock."""
+    e = {"t": f"{T(UNLOCKS[kind])}: {L(key, key)}"}
+    if kind == "unlock_town_rights" and key in town_right_defs:
+        v = town_right_defs[key]
+        e["loc"] = _mods(get(v, "location_modifier"))
+        e["m"] = _mods(get(v, "country_modifier"))
+    elif kind == "unlock_government_reform" and key in reform_defs:
+        e["m"] = [x for blk in get_all(reform_defs[key], "country_modifier") if isinstance(blk, list) for x in _mods(blk)]
+    return e
+
+
 def build_lang(lang):
     global LANG, loc, loc_en
     LANG = lang
@@ -694,7 +731,7 @@ def build_lang(lang):
                 if not kk or not isinstance(vv, str):
                     continue
                 if kk in UNLOCKS:
-                    unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
+                    unlocks.append(unlock_entry(kk, vv))
                 elif kk in mod_types:
                     bonuses.append(mod_line(kk, vv))
             # original_tag stays visible: such advances need you to have started as that nation, forming it is not enough
@@ -777,7 +814,7 @@ def build_lang(lang):
             if not kk or not isinstance(vv, str):
                 continue
             if kk in UNLOCKS:
-                unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
+                unlocks.append(unlock_entry(kk, vv))
             elif kk in mod_types:
                 bonuses.append(mod_line(kk, vv))
         # culture conditions are what the list itself shows; keep only the other conditions
