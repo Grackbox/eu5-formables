@@ -128,7 +128,10 @@ members, level_of = {}, {}
 LEVELS = ["continent", "sub_continent", "region", "area", "province"]
 
 
-def walk(block, depth):
+geo_parent, geo_children = {}, {}
+
+
+def walk(block, depth, parent=None):
     acc = set()
     for k, _, v in block:
         if k is None:
@@ -136,9 +139,12 @@ def walk(block, depth):
                 acc.add(v)
             continue
         if isinstance(v, list):
-            s = walk(v, depth + 1)
+            s = walk(v, depth + 1, k)
             members[k] = s
             level_of[k] = LEVELS[min(depth, 4)]
+            geo_parent[k] = parent
+            if parent:
+                geo_children.setdefault(parent, []).append(k)
             acc |= s
     return acc
 
@@ -295,6 +301,32 @@ def start_locations(v):
 
 formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
              if fid and isinstance(b, list)]
+
+# ---------------------------------------------------------------- territory cards
+TERR_KEYS = ("continents", "sub_continents", "regions", "areas", "provinces", "locations")
+formable_req = {}
+for fid, b in formables:
+    req = set()
+    for key in TERR_KEYS:
+        for _, _, g in (get(b, key) or []):
+            if isinstance(g, str):
+                req |= members.get(g, {g} if g not in excluded else set())
+    formable_req[fid] = req
+owner_of = {}
+for _t, _v in start_setup.items():
+    for _l in start_locations(_v):
+        owner_of[_l] = _t
+geo_info = {}
+for g, lv in level_of.items():
+    locs = members.get(g, set())
+    if not locs:
+        continue
+    f = sorted(((fid, len(req & locs)) for fid, req in formable_req.items() if req & locs), key=lambda x: -x[1])
+    top = 10 if lv == "province" else 20
+    f = f[:top]
+    o = Counter(owner_of[l] for l in locs if l in owner_of).most_common(top)
+    geo_info[g] = {"lv": lv, "c": len(locs), "par": geo_parent.get(g), "kids": [k for k in geo_children.get(g, []) if k in level_of], "f": f,
+                   "o": o, "free": len(locs) - sum(1 for l in locs if l in owner_of)}
 
 # ---------------------------------------------------------------- cultures
 culture_info = {}  # culture -> groups, dialect, color
@@ -755,7 +787,7 @@ def build_lang(lang):
             for g in lst:
                 ms = members.get(g, {g} if g not in excluded else set())
                 req |= ms
-                entries.append({"n": L(g, g), "c": len(ms)})
+                entries.append({"n": L(g, g), "c": len(ms), "k": g})
             terr[T(label)] = entries
         frac = float(get(b, "required_locations_fraction", "1.0"))
         cont = Counter(loc_continent.get(l) for l in req if loc_continent.get(l)).most_common(1)
@@ -855,7 +887,8 @@ def build_lang(lang):
         members_ = [c for c in all_cultures if g in culture_info[c]["groups"]]
         gadv = sorted([a for a, x in cadv.items() if g in x["gk"]], key=lambda a: (cadv[a]["age"], cadv[a]["n"]))
         groups.append({"id": "grp." + g, "key": g, "name": adj(g), "cultures": members_, "adv": gadv})
-    return {"lang": lang, "items": items, "fixed": fixed, "cultures": cultures, "groups": groups, "cadv": cadv, "ranks": ranks, "version": VERSION}
+    geo = {g: {**x, "n": L(g, g)} for g, x in geo_info.items()}
+    return {"lang": lang, "geo": geo, "items": items, "fixed": fixed, "cultures": cultures, "groups": groups, "cadv": cadv, "ranks": ranks, "version": VERSION}
 
 
 # ================================================================ output
