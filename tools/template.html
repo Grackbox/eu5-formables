@@ -215,9 +215,10 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
-    tierChip: (l, n) => `Тир ${l} · ${n}`, startChip: n => `Стартовые страны · ${n}`, startBadge: "есть на старте",
-    startHint: "Страны, которые уже существуют в 1337 году. Сформировать такую страну можно, только если её нет.",
-    startNote: "Эта страна уже существует на старте 1337 года. Сформировать её можно, только если её не станет.", locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
+    tierChip: (l, n) => `Тир ${l} · ${n}`, startChip: n => `Стартовые, недоступные другим · ${n}`, startBadge: "есть на старте",
+    startHint: "Страны, которые уже существуют в 1337 году и которые не может сформировать ни одна другая стартовая страна.",
+    startNote: "Эта страна существует на старте 1337 года. Другие страны могут сформировать её, когда её не станет.",
+    blockedNote: "Эта страна существует на старте 1337 года, и ни одна другая стартовая страна не подходит под условия, чтобы её сформировать.", locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
     special: "особые эффекты", variant: "вариант",
     helpTitle: "Что такое тир, правило и бонусы ранга",
     help: `<p><b>Тир</b> — уровень формируемой страны (<code>level</code>, от 1 до 5). Сформировать можно только страну более высокого тира, чем текущая.</p>
@@ -246,9 +247,10 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
-    tierChip: (l, n) => `Tier ${l} · ${n}`, startChip: n => `Starting nations · ${n}`, startBadge: "exists at start",
-    startHint: "Nations that already exist in 1337. You can only form one while it doesn't exist.",
-    startNote: "This nation already exists at the 1337 start. You can only form it once it no longer exists.", locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
+    tierChip: (l, n) => `Tier ${l} · ${n}`, startChip: n => `Starting, not formable by others · ${n}`, startBadge: "exists at start",
+    startHint: "Nations that exist in 1337 and that no other starting nation can form.",
+    startNote: "This nation exists at the 1337 start. Other nations can form it once it no longer exists.",
+    blockedNote: "This nation exists at the 1337 start, and no other starting nation meets the conditions to form it.", locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
     special: "special effects", variant: "variant",
     helpTitle: "What tier, rule and rank bonuses mean",
     help: `<p><b>Tier</b> is the formable's level (<code>level</code>, 1 to 5). You can only form a nation of a higher tier than your current one.</p>
@@ -327,7 +329,7 @@ function paintChrome() {
   const levels = [...new Set(items.map(i => i.level))].sort();
   chips($("#tiers"), levels, l => t.tierChip(l, items.filter(i => i.level === l).length), state.tiers);
   chips($("#rules"), Object.keys(t.rules), r => t.rules[r], state.rules);
-  $("#startChip").textContent = t.startChip(items.filter(i => i.start).length);
+  $("#startChip").textContent = t.startChip(items.filter(i => i.blocked).length);
   $("#startChip").title = t.startHint;
   $("#startChip").setAttribute("aria-pressed", String(state.showStart));
   const conts = [...new Set(items.map(i => i.cont))].sort((a, b) => a.localeCompare(b));
@@ -343,7 +345,7 @@ function filtered() {
   const out = items.filter(i =>
     (!q || i.hay.includes(q)) && (!state.tiers.size || state.tiers.has(i.level)) && (!state.rules.size || state.rules.has(i.rule)) &&
     (!state.cont || i.cont === state.cont) && (!state.fRank || i.ranks.length) && (!state.fEff || i.eff.length) &&
-    (!state.fCap || !i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv) && (state.showStart || !i.start));
+    (!state.fCap || !i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv) && (state.showStart || !i.blocked));
   const [k, dir] = state.sort.split(":");
   const m = dir === "desc" ? -1 : 1;
   const key = i => k === "rank" ? i.rankLevel : i[k];
@@ -420,7 +422,7 @@ function openDetail(id, push = true) {
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
       <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
       <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
-    ${i.start ? `<p class="gilt" style="white-space:normal">${esc(t.startNote)}</p>` : ""}
+    ${i.blocked ? `<p class="gilt" style="white-space:normal">${esc(t.blockedNote)}</p>` : i.start ? `<p class="muted small">${esc(t.startNote)}</p>` : ""}
     ${i.desc ? `<p class="desc clamp" title="${esc(t.descr)}">${esc(i.desc)}</p>` : ""}
     <div class="cards">
       ${advances(i)}
