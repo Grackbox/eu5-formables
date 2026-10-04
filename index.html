@@ -234,7 +234,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "53d90b866a"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "9679a831e4"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -253,7 +253,8 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
-    fAdvC: "Есть культурные улучшения", inLoc: "в локации", inCountry: "для страны", grpBadge: n => `группа: ${n}`,
+    fAdvC: "Есть культурные улучшения", xcBadge: "+ условия",
+    xcHint: "Культура подходит, но у страны есть и другие условия появления (религия, теги, события и т.п.) — откройте карточку.", inLoc: "в локации", inCountry: "для страны", grpBadge: n => `группа: ${n}`,
     grpTitle: n => `Общие улучшения группы · ${n}`, grpNote: "Их получает любая культура этой группы.",
     grpNone: "У этой группы нет общих улучшений: улучшения её культур привязаны к отдельным культурам.",
     grpCultures: n => `Культуры группы · ${n}`, grpShow: "Показать культуры группы в таблице", grpKind: "Группа культур",
@@ -312,7 +313,8 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
-    fAdvC: "Has culture advances", inLoc: "in the location", inCountry: "for the country", grpBadge: n => `group: ${n}`,
+    fAdvC: "Has culture advances", xcBadge: "+ conditions",
+    xcHint: "The culture fits, but the nation has other conditions to appear (religion, tags, events and so on). Open it to see them.", inLoc: "in the location", inCountry: "for the country", grpBadge: n => `group: ${n}`,
     grpTitle: n => `Shared group advances · ${n}`, grpNote: "Every culture in this group gets these.",
     grpNone: "This group has no shared advances: its cultures' advances belong to individual cultures.",
     grpCultures: n => `Cultures in the group · ${n}`, grpShow: "Show the group's cultures in the table", grpKind: "Culture group",
@@ -566,7 +568,7 @@ function principles(i) {
 
 function linkChips(list, max = 80) {
   const t = u();
-  const shown = list.slice(0, max).map(x => `<button type="button" class="linkchip" data-open="${esc(x.id)}">${esc(x.label)}${x.b ? `<b>${esc(x.b)}</b>` : ""}</button>`).join("");
+  const shown = list.slice(0, max).map(x => `<button type="button" class="linkchip" data-open="${esc(x.id)}"${x.title ? ` title="${esc(x.title)}"` : ""}>${esc(x.label)}${x.b ? `<b>${esc(x.b)}</b>` : ""}</button>`).join("");
   return `<div class="linkchips">${shown}${list.length > max ? `<span class="muted small">${esc(t.culMore(list.length - max))}</span>` : ""}</div>`;
 }
 function nationLink(tag) {
@@ -597,14 +599,16 @@ function openGroup(g, push) {
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
-  if (push) history.replaceState(null, "", "#" + g.id);
+  if (push) nav(g.id);
   $("#close").focus({ preventScroll: true });
 }
 
 function openCulture(c, push) {
   const t = u(), d = $("#drawer");
-  const forms = c.forms.map(id => DATA.byId[id]).filter(Boolean).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name))
-    .map(f => ({ id: f.id, label: f.name, b: t.tierN(f.level) }));
+  const forms = c.forms.map(id => DATA.byId[id]).filter(Boolean)
+    .sort((a, b) => (a.xc ? 1 : 0) - (b.xc ? 1 : 0) || a.level - b.level || a.name.localeCompare(b.name))
+    .map(f => ({ id: f.id, label: f.name + (f.variant ? ` · ${t.variant} ${f.variant}` : ""),
+      b: t.tierN(f.level) + (f.xc ? ` · ${t.xcBadge}` : ""), title: f.xc ? t.xcHint : "" }));
   const st = c.st.map(nationLink).filter(x => x.id);
   d.innerHTML = `
     <div class="dhead"><span class="sw" style="background:${c.color || "transparent"}"></span><h2 id="dtitle">${esc(c.name)}</h2>
@@ -618,7 +622,7 @@ function openCulture(c, push) {
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
-  if (push) history.replaceState(null, "", "#" + c.id);
+  if (push) nav(c.id);
   render();
   $("#close").focus({ preventScroll: true });
 }
@@ -654,7 +658,7 @@ function openFixed(i, push) {
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
-  if (push) history.replaceState(null, "", "#" + i.id);
+  if (push) nav(i.id);
   render();
   $("#close").focus({ preventScroll: true });
 }
@@ -700,14 +704,20 @@ function openDetail(id, push = true) {
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
-  if (push) history.replaceState(null, "", "#" + id);
+  if (push) nav(id);
   render();
   $("#close").focus({ preventScroll: true });
 }
-function closeDetail() {
+const tabHash = () => state.mode === "f" ? "" : "tab." + state.mode;
+function nav(h) {
+  // one history entry per card or list, so the browser's back and forward buttons walk through them
+  if (decodeURIComponent(location.hash.slice(1)) === h) return;
+  try { history.pushState(null, "", h ? "#" + h : location.pathname + location.search); } catch {}
+}
+function closeDetail(fromHistory = false) {
   $("#drawer").classList.remove("open"); $("#backdrop").hidden = true;
   const was = state.sel; state.sel = null;
-  history.replaceState(null, "", location.pathname + location.search);
+  if (fromHistory !== true) nav(tabHash());
   render();
   if (was) document.querySelector(`tr[data-id="${CSS.escape(was)}"]`)?.focus({ preventScroll: true });
 }
@@ -753,12 +763,20 @@ $("#rows").addEventListener("keydown", e => { if (e.key === "Enter") { const tr 
 $("#q").addEventListener("input", e => { state.q = e.target.value; render(); });
 $("#cont").addEventListener("change", e => { state.cont = e.target.value; render(); });
 $("#sort").addEventListener("change", e => { setSort(e.target.value); render(); });
-function setMode(m) {
+function setMode(m, fromHistory = false) {
   if (m === state.mode) return;
   state.mode = m; state.cont = ""; state.clang = ""; $("#cont").value = "";
-  if (state.sel) closeDetail();
+  if (state.sel) closeDetail(true);
   paintChrome(); render();
+  if (!fromHistory) nav(tabHash());
 }
+window.addEventListener("popstate", () => {
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (!h || h.startsWith("tab.")) {
+    if (state.sel || !$("#backdrop").hidden) closeDetail(true);
+    setMode(h ? h.slice(4) : "f", true);
+  } else openDetail(h, false);
+});
 $("#other").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
 $("#tabs").addEventListener("click", e => { const b = e.target.closest("[data-mode]"); if (b) setMode(b.dataset.mode); });
 const FLAGS = ["fRank", "fEff", "fCap", "fAllow", "fAdv", "fNoEvent"];
@@ -802,7 +820,11 @@ $("#theme").addEventListener("click", () => {
   const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
   root.dataset.theme = dark ? "light" : "dark"; store.set("eu5f-theme", root.dataset.theme);
 });
-if (location.hash.length > 1) state.sel = decodeURIComponent(location.hash.slice(1));
+{
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h.startsWith("tab.") && ["x", "c"].includes(h.slice(4))) state.mode = h.slice(4);
+  else if (h) state.sel = h;
+}
 setLang(lang);
 </script>
 

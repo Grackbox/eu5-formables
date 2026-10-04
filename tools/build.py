@@ -802,6 +802,13 @@ def build_lang(lang):
     for it in items:
         cul = formable_cultures.get(it["id"])
         it["cul"] = cul if cul is not None else None   # None: no culture requirement
+    for fid, b in formables:
+        pot = get(b, "potential") or []
+        # visibility conditions beyond culture (religion, tags, events, special states)
+        xc = any(not _mentions_culture([(k, o, v)]) for k, o, v in pot)
+        for it in items:
+            if it["id"] == fid:
+                it["xc"] = xc
 
     # Cultures: their advances (stored once in cadv), formables they can form, nations that start with them.
     cadv = {}
