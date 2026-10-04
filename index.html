@@ -190,7 +190,8 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
       <div class="fgroup"><span class="ftitle" data-t="listTitle"></span><div class="chips" id="tabs">
         <button type="button" class="chip" data-mode="f" aria-pressed="true"></button>
         <button type="button" class="chip" data-mode="x" aria-pressed="false"></button>
-        <button type="button" class="chip" data-mode="c" aria-pressed="false"></button></div></div>
+        <button type="button" class="chip" data-mode="c" aria-pressed="false"></button>
+        <button type="button" class="chip" data-mode="r" aria-pressed="false"></button></div></div>
       <div class="fgroup"><label class="ftitle" for="q" data-t="search"></label><input type="search" id="q"></div>
       <div class="fgroup fo"><span class="ftitle" data-t="tier"></span><div class="chips" id="tiers"></div></div>
       <div class="fgroup fo"><span class="ftitle" data-t="rule"></span><div class="chips" id="rules"></div></div>
@@ -218,6 +219,10 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
             <th data-k="rel" data-t="colRel"></th><th data-k="cont" data-t="colCont"></th><th data-k="locs" data-t="colLocs"></th>
             <th data-k="nadv" data-t="colAdv"></th>
           </tr></thead>
+          <thead id="headR" hidden><tr>
+            <th data-k="name" data-t="colRelName"></th><th data-k="cont" data-t="colGroup"></th>
+            <th data-k="nadv" data-t="colAdv"></th><th data-k="nforms" data-t="colForms"></th><th data-k="nst" data-t="colStart"></th>
+          </tr></thead>
           <thead id="headC" hidden><tr>
             <th data-k="name" data-t="colCulName"></th><th data-k="cont" data-t="colGroup"></th><th data-k="lang" data-t="colLang"></th>
             <th data-k="nadv" data-t="colAdv"></th><th data-k="nforms" data-t="colForms"></th><th data-k="nst" data-t="colStart"></th>
@@ -240,7 +245,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "4dbc3e19e3"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "498855b42f"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -269,8 +274,19 @@ const UI = {
     grpTitle: n => `Общие улучшения группы · ${n}`, grpNote: "Их получает любая культура этой группы.",
     grpNone: "У этой группы нет общих улучшений: улучшения её культур привязаны к отдельным культурам.",
     grpCultures: n => `Культуры группы · ${n}`, grpShow: "Показать культуры группы в таблице", grpKind: "Группа культур",
-    langFilter: "Язык", clearFilter: "Сбросить", tabNames: { f: "Формируемые", x: "Без тира", c: "Культуры" }, listTitle: "Список", tabs: { f: n => `Формируемые · ${n}`, x: n => `Нельзя сформировать · ${n}`, c: n => `Культуры · ${n}` },
-    listNames: { f: "формируемые", x: "нельзя сформировать", c: "культуры" }, cgroup: "Группа культур",
+    langFilter: "Язык", clearFilter: "Сбросить", tabNames: { f: "Формируемые", x: "Без тира", c: "Культуры", r: "Религии" }, listTitle: "Список", tabs: { f: n => `Формируемые · ${n}`, x: n => `Нельзя сформировать · ${n}`, c: n => `Культуры · ${n}` },
+    listNames: { f: "формируемые", x: "нельзя сформировать", c: "культуры", r: "религии" }, cgroup: "Группа культур", rgroupL: "Группа религий",
+    colRelName: "Религия", statsR: n => `${n} религий: их улучшения, какие страны с ними можно сформировать и где они на старте`,
+    sortsR: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формируемых", "nst:desc": "Больше всего стран на старте",
+      "name:asc": "Название — А→Я", "cont:asc": "Группа" },
+    radvTitle: n => `Религиозные улучшения · ${n}`, radvNote: "Открываются в дереве развития, пока это религия вашей страны.",
+    rformsTitle: n => `Формируемые страны, которым подходит эта религия · ${n}`,
+    rformsNone: "Нет формируемых стран, которым нужна именно эта религия (страны без требований к религии доступны всем).",
+    rstartTitle: n => `Страны с этой религией на старте · ${n}`, rstartNone: "Ни одна страна не начинает с этой религией.",
+    relTitle: "Нужные религии", relAny: "Подходит любая религия — условий по религии нет.",
+    rgrTitle: n => `Общие улучшения группы религий · ${n}`, rgrNote: "Их получает любая религия этой группы.",
+    rgrNone: "У этой группы нет общих улучшений.", rgrMembers: n => `Религии группы · ${n}`, rgrShow: "Показать религии группы в таблице",
+    rgrKind: "Группа религий", relGroupL: "Группа",
     colCulName: "Культура", colGroup: "Группа", colLang: "Язык", colForms: "Может сформировать", colStart: "Стран на старте",
     statsC: n => `${n} культур: их улучшения, какие страны они могут сформировать и где они на старте`,
     sortsC: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формируемых", "nst:desc": "Больше всего стран на старте",
@@ -334,8 +350,19 @@ const UI = {
     grpTitle: n => `Shared group advances · ${n}`, grpNote: "Every culture in this group gets these.",
     grpNone: "This group has no shared advances: its cultures' advances belong to individual cultures.",
     grpCultures: n => `Cultures in the group · ${n}`, grpShow: "Show the group's cultures in the table", grpKind: "Culture group",
-    langFilter: "Language", clearFilter: "Clear", tabNames: { f: "Formable", x: "Can't be formed", c: "Cultures" }, listTitle: "List", tabs: { f: n => `Formable · ${n}`, x: n => `Can't be formed · ${n}`, c: n => `Cultures · ${n}` },
-    listNames: { f: "formable", x: "can't be formed", c: "cultures" }, cgroup: "Culture group",
+    langFilter: "Language", clearFilter: "Clear", tabNames: { f: "Formable", x: "Can't be formed", c: "Cultures", r: "Religions" }, listTitle: "List", tabs: { f: n => `Formable · ${n}`, x: n => `Can't be formed · ${n}`, c: n => `Cultures · ${n}` },
+    listNames: { f: "formable", x: "can't be formed", c: "cultures", r: "religions" }, cgroup: "Culture group", rgroupL: "Religion group",
+    colRelName: "Religion", statsR: n => `${n} religions: their advances, which nations they can form and where they start`,
+    sortsR: { "nadv:desc": "Most advances", "nforms:desc": "Most formable nations", "nst:desc": "Most starting nations",
+      "name:asc": "Name, A to Z", "cont:asc": "Group" },
+    radvTitle: n => `Religious advances · ${n}`, radvNote: "Available in the advance tree while this is your nation's religion.",
+    rformsTitle: n => `Formable nations this religion fits · ${n}`,
+    rformsNone: "No formable nation requires this religion specifically (nations without religion requirements are open to all).",
+    rstartTitle: n => `Nations with this religion at the start · ${n}`, rstartNone: "No nation starts with this religion.",
+    relTitle: "Required religions", relAny: "Any religion: there are no religion conditions.",
+    rgrTitle: n => `Shared religion group advances · ${n}`, rgrNote: "Every religion in this group gets these.",
+    rgrNone: "This group has no shared advances.", rgrMembers: n => `Religions in the group · ${n}`, rgrShow: "Show the group's religions in the table",
+    rgrKind: "Religion group", relGroupL: "Group",
     colCulName: "Culture", colGroup: "Group", colLang: "Language", colForms: "Can form", colStart: "Nations at start",
     statsC: n => `${n} cultures: their advances, which nations they can form and where they start`,
     sortsC: { "nadv:desc": "Most advances", "nforms:desc": "Most formable nations", "nst:desc": "Most starting nations",
@@ -394,7 +421,7 @@ if (!LANGS[lang]) {
 const u = () => UI[lang] || UI.english;
 let DATA = null, items = [];
 const cache = {};
-const state = { clang: "", mode: "f", sortX: "locs:desc", sortC: "nadv:desc", q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
+const state = { clang: "", mode: "f", sortX: "locs:desc", sortC: "nadv:desc", sortR: "nadv:desc", q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
   fAdv: false, fNoEvent: false, sort: "level:desc", sel: null };
 
 async function loadLang(l) {
@@ -420,6 +447,14 @@ function prepare() {
   for (const it of items) (byName[it.name] ||= []).push(it);
   for (const it of DATA.fixed || []) it.twin = (byName[it.name] || [])[0] || null;
   for (const it of items) it.twinFixed = (DATA.fixed || []).find(x => x.name === it.name) || null;
+  DATA.relByKey = {}; DATA.rgrByKey = {};
+  for (const g of DATA.rgroups || []) DATA.rgrByKey[g.key] = g;
+  for (const r of DATA.religions || []) {
+    DATA.relByKey[r.key] = r;
+    r.advObjs = r.adv.map(id => DATA.radv[id]).filter(Boolean);
+    r.cont = r.group; r.nforms = r.forms.length; r.nst = r.st.length;
+    r.hay = [r.name, r.key, r.group, ...r.advObjs.map(a => a.n)].join(" ").toLowerCase();
+  }
   DATA.grpByKey = {};
   for (const g of DATA.groups || []) DATA.grpByKey[g.key] = g;
   DATA.culByKey = {};
@@ -438,10 +473,11 @@ function prepare() {
 }
 const fixedMode = () => state.mode === "x";
 const cultMode = () => state.mode === "c";
-const listOf = m => m === "x" ? (DATA.fixed || []) : m === "c" ? (DATA.cultures || []) : items;
+const relMode = () => state.mode === "r";
+const listOf = m => m === "x" ? (DATA.fixed || []) : m === "c" ? (DATA.cultures || []) : m === "r" ? (DATA.religions || []) : items;
 const curList = () => listOf(state.mode);
-const sortKey = () => cultMode() ? state.sortC : fixedMode() ? state.sortX : state.sort;
-function setSort(v) { if (cultMode()) state.sortC = v; else if (fixedMode()) state.sortX = v; else state.sort = v; }
+const sortKey = () => relMode() ? state.sortR : cultMode() ? state.sortC : fixedMode() ? state.sortX : state.sort;
+function setSort(v) { if (relMode()) state.sortR = v; else if (cultMode()) state.sortC = v; else if (fixedMode()) state.sortX = v; else state.sort = v; }
 
 function chips(el, values, label, set) {
   el.innerHTML = values.map(v => `<button type="button" class="chip" aria-pressed="${set.has(v)}" data-v="${esc(v)}">${esc(label(v))}</button>`).join("");
@@ -456,12 +492,12 @@ function paintChrome() {
   $("#theme").textContent = t.theme;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t[el.dataset.t]; });
   $("#q").placeholder = t.searchPh;
-  $("#sort").innerHTML = Object.entries(cultMode() ? t.sortsC : fixedMode() ? t.sortsX : t.sorts).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#sort").innerHTML = Object.entries(relMode() ? t.sortsR : cultMode() ? t.sortsC : fixedMode() ? t.sortsX : t.sorts).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
   $("#sort").value = sortKey();
   document.body.classList.toggle("fixed-mode", state.mode !== "f");
-  $("#headF").hidden = state.mode !== "f"; $("#headX").hidden = state.mode !== "x"; $("#headC").hidden = state.mode !== "c";
-  $("#contLabel").textContent = cultMode() ? t.cgroup : t.continent;
-  document.querySelector('[data-t="fAdv"]').textContent = cultMode() ? t.fAdvC : t.fAdv;
+  $("#headF").hidden = state.mode !== "f"; $("#headX").hidden = state.mode !== "x"; $("#headC").hidden = state.mode !== "c"; $("#headR").hidden = state.mode !== "r";
+  $("#contLabel").textContent = relMode() ? t.rgroupL : cultMode() ? t.cgroup : t.continent;
+  document.querySelector('[data-t="fAdv"]').textContent = (cultMode() || relMode()) ? t.fAdvC : t.fAdv;
   $("#helpTitle").textContent = t.helpTitle;
   $("#helpBody").innerHTML = t.help;
   if (!DATA) return;
@@ -475,14 +511,15 @@ function paintChrome() {
   const conts = [...new Set(cultMode() ? curList().flatMap(i => i.groups) : curList().map(i => i.cont))].sort((a, b) => a.localeCompare(b));
   if (!conts.includes(state.cont)) state.cont = "";
   $("#cont").innerHTML = `<option value="">${esc(t.all)}</option>` + conts.map(c => `<option${c === state.cont ? " selected" : ""}>${esc(c)}</option>`).join("");
-  $("#stats").textContent = cultMode() ? t.statsC(curList().length) : fixedMode() ? t.statsX((DATA.fixed || []).length) : t.stats(items.length, levels.join(", "), DATA.version);
+  $("#stats").textContent = relMode() ? t.statsR(curList().length) : cultMode() ? t.statsC(curList().length) : fixedMode() ? t.statsX((DATA.fixed || []).length) : t.stats(items.length, levels.join(", "), DATA.version);
   $("#ranks").innerHTML = Object.values(DATA.ranks).sort((a, b) => b.level - a.level)
     .map(r => `<div class="card"><h3>${esc(r.name)}</h3><ul>${r.mods.map(m => `<li>${esc(m)}</li>`).join("") || `<li>${esc(t.noBonus)}</li>`}</ul></div>`).join("");
 }
 
 function filtered() {
   const q = state.q.trim().toLowerCase();
-  const out = cultMode() ? curList().filter(i => (!q || i.hay.includes(q)) && (!state.cont || i.groups.includes(state.cont)) && (!state.clang || i.lang === state.clang) && (!state.fAdv || i.nadv))
+  const out = relMode() ? curList().filter(i => (!q || i.hay.includes(q)) && (!state.cont || i.group === state.cont) && (!state.fAdv || i.nadv))
+    : cultMode() ? curList().filter(i => (!q || i.hay.includes(q)) && (!state.cont || i.groups.includes(state.cont)) && (!state.clang || i.lang === state.clang) && (!state.fAdv || i.nadv))
     : fixedMode() ? curList().filter(i => (!q || i.hay.includes(q)) && (!state.cont || i.cont === state.cont) && (!state.fAdv || i.nadv)) : items.filter(i =>
     (!q || i.hay.includes(q)) && (!state.tiers.size || state.tiers.has(i.level)) && (!state.rules.size || state.rules.has(i.rule)) &&
     (!state.cont || i.cont === state.cont) && (!state.fRank || i.ranks.length) && (!state.fEff || i.eff.length) &&
@@ -512,13 +549,20 @@ function render() {
   $("#count").innerHTML = esc(t.shown(list.length, curList().length)) + (cultMode() && state.clang
     ? ` <span class="filterpill">${esc(t.langFilter)}: ${esc(state.clang)} <button type="button" id="clearLang" aria-label="${esc(t.clearFilter)}">✕</button></span>` : "");
   const q = state.q.trim().toLowerCase();
-  const others = q ? ["f", "x", "c"].filter(m => m !== state.mode).map(m => [m, listOf(m).filter(i => i.hay.includes(q))]).filter(([, l]) => l.length) : [];
+  const others = q ? ["f", "x", "c", "r"].filter(m => m !== state.mode).map(m => [m, listOf(m).filter(i => i.hay.includes(q))]).filter(([, l]) => l.length) : [];
   $("#other").hidden = !others.length;
   $("#other").innerHTML = others.map(([m, l]) => `<span>${esc(t.otherFound(l.length, t.listNames[m]))}: ${l.slice(0, 5).map(i => esc(i.name)).join(", ")}${l.length > 5 ? "…" : ""}
     <button type="button" class="dbtn" data-mode="${m}">${esc(t.otherShow)}</button></span>`).join("");
   $("#empty").textContent = t.empty;
   $("#empty").hidden = list.length > 0;
-  if (cultMode()) {
+  if (relMode()) {
+    $("#rows").innerHTML = list.map(i => `
+    <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
+      <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.key)}</div></div></div></td>
+      <td><button type="button" class="cellbtn" data-open="rgr.${esc(i.gk)}">${esc(i.group)}</button></td>
+      <td class="num">${i.nadv || `<span class="muted">—</span>`}</td><td class="num">${i.nforms || `<span class="muted">—</span>`}</td><td class="num">${i.nst || `<span class="muted">—</span>`}</td>
+    </tr>`).join("");
+  } else if (cultMode()) {
     $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.key)}</div></div></div></td>
@@ -530,7 +574,7 @@ function render() {
     $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.tag)}${i.twin ? `<span class="variant">${esc(t.twinBadge(i.twin.tag))}</span>` : ""}</div></div></div></td>
-      <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${i.ck && DATA.culByKey[i.ck] ? `<button type="button" class="cellbtn" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button>` : esc(i.cul)}</td><td>${esc(i.rel)}</td><td>${contCell(i)}</td>
+      <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${i.ck && DATA.culByKey[i.ck] ? `<button type="button" class="cellbtn" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button>` : esc(i.cul)}</td><td>${i.rk && DATA.relByKey[i.rk] ? `<button type="button" class="cellbtn" data-open="rel.${esc(i.rk)}">${esc(i.rel)}</button>` : esc(i.rel)}</td><td>${contCell(i)}</td>
       <td class="num">${i.locs}</td><td class="num">${i.nadv || `<span class="muted">—</span>`}${i.ref && i.ref.length ? `<span class="muted small"> +${i.ref.length} ${esc(t.refShort)}</span>` : ""}</td>
     </tr>`).join("");
   } else $("#rows").innerHTML = list.map(i => `
@@ -622,6 +666,53 @@ function openGeo(key, push) {
   $("#close").focus({ preventScroll: true });
 }
 
+function religionCard(i) {
+  const t = u();
+  if (i.rel === undefined) return "";
+  if (i.rel === null) return `<div class="card"><h3>${esc(t.relTitle)}</h3><div class="muted">${esc(t.relAny)}</div></div>`;
+  const list = i.rel.map(k => DATA.relByKey[k]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ id: r.id, label: r.name }));
+  return `<div class="card wide"><h3>${esc(t.relTitle)} · ${list.length}</h3>${linkChips(list)}</div>`;
+}
+function openReligion(r, push) {
+  const t = u(), d = $("#drawer");
+  const forms = r.forms.map(id => DATA.byId[id]).filter(Boolean)
+    .sort((a, b) => (a.xc ? 1 : 0) - (b.xc ? 1 : 0) || a.level - b.level || a.name.localeCompare(b.name))
+    .map(f => ({ id: f.id, label: f.name + (f.variant ? ` · ${t.variant} ${f.variant}` : ""), b: t.tierN(f.level) }));
+  const st = r.st.map(nationLink).filter(x => x.id);
+  d.innerHTML = `
+    <div class="dhead"><span class="sw" style="background:${r.color || "transparent"}"></span><h2 id="dtitle">${esc(r.name)}</h2>
+      <span class="tag">${esc(r.key)}</span>${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
+    <p class="small"><span class="muted">${esc(t.relGroupL)}:</span> <button type="button" class="linkchip" data-open="rgr.${esc(r.gk)}">${esc(r.group)}</button></p>
+    <div class="cards">
+      ${advances({ adv: r.advObjs, tag: "", name: r.name }, t.radvTitle(r.advObjs.length), t.radvNote)}
+      <div class="card wide"><h3>${esc(t.rformsTitle(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.rformsNone)}</div>`}</div>
+      <div class="card wide"><h3>${esc(t.rstartTitle(st.length))}</h3>${st.length ? linkChips(st, 150) : `<div class="muted">${esc(t.rstartNone)}</div>`}</div>
+    </div>`;
+  d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
+  $("#close").onclick = closeDetail;
+  if (push) nav(r.id);
+  render();
+  $("#close").focus({ preventScroll: true });
+}
+function openRGroup(g, push) {
+  const t = u(), d = $("#drawer");
+  const advs = g.adv.map(id => DATA.radv[id]).filter(Boolean);
+  const mem = g.religions.map(k => DATA.relByKey[k]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name)).map(r => ({ id: r.id, label: r.name }));
+  d.innerHTML = `
+    <div class="dhead"><h2 id="dtitle">${esc(g.name)}</h2><span class="tag">${esc(t.rgrKind)} · ${esc(g.key)}</span>
+      ${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
+    <p><button type="button" class="linkchip" data-filter-rgroup="${esc(g.name)}">${esc(t.rgrShow)}</button></p>
+    <div class="cards">
+      ${advs.length ? advances({ adv: advs.map(a => ({ ...a, rgk: [], rgrp: [] })), tag: "", name: g.name }, t.rgrTitle(advs.length), t.rgrNote)
+        : `<div class="card wide"><h3>${esc(t.rgrTitle(0))}</h3><div class="muted">${esc(t.rgrNone)}</div></div>`}
+      <div class="card wide"><h3>${esc(t.rgrMembers(mem.length))}</h3>${linkChips(mem, 200)}</div>
+    </div>`;
+  d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
+  $("#close").onclick = closeDetail;
+  if (push) nav(g.id);
+  $("#close").focus({ preventScroll: true });
+}
+
 function openGroup(g, push) {
   const t = u(), d = $("#drawer");
   const advs = g.adv.map(id => DATA.cadv[id]).filter(Boolean);
@@ -673,7 +764,7 @@ function advances(i, title, note) {
   return `<div class="card wide"><h3>${esc(title || t.advTitle(i.tag, i.adv.length))}</h3><div class="muted small">${esc(note || t.advNote(i.name))}</div>` +
     Object.keys(byAge).sort((a, b) => a - b).map(age => `<div class="age"><span class="roman">${ROMAN[age] || age}</span>${esc(UI[lang] ? t.age(byAge[age][0].ageN) : byAge[age][0].ageN)}</div>` +
       byAge[age].map(a => `<div class="adv">
-        <div><div class="an">${esc(a.n)}${(a.gk || []).map((g, n) => `<button type="button" class="grpbadge" data-open="grp.${esc(g)}">${esc(t.grpBadge(a.grp[n]))}</button>`).join("")}</div>
+        <div><div class="an">${esc(a.n)}${(a.gk || []).map((g, n) => `<button type="button" class="grpbadge" data-open="grp.${esc(g)}">${esc(t.grpBadge(a.grp[n]))}</button>`).join("")}${(a.rgk || []).map((g, n) => `<button type="button" class="grpbadge" data-open="rgr.${esc(g)}">${esc(t.grpBadge(a.rgrp[n]))}</button>`).join("")}</div>
           <div class="ab">${a.b.map(b => `<span class="b">${esc(b)}</span>`).join("")}${a.u.map(x => unlockHtml(x)).join("")}</div></div>
         <div class="side"><div>${a.req.length ? `${esc(t.requires)}: ${a.req.map(esc).join(", ")}` : ""}${a.req.length && a.d ? " · " : ""}${a.d ? `<button type="button" class="dbtn" aria-expanded="false">${esc(t.descr)}</button>` : ""}</div>
           ${a.cond.length === 1 && !a.cond[0].c ? `<div class="${a.cond[0].k === "orig" ? "orig" : ""}">${esc(t.extra)} ${esc(a.cond[0].t)}</div>` : a.cond.length ? `<div>${esc(t.extra)}</div>${tree(a.cond)}` : ""}</div>
@@ -703,7 +794,7 @@ function openFixed(i, push) {
     <div class="cards">
       ${advances(i)}
       ${principles(i)}
-      <div class="card"><h3>${esc(t.infoTitle)}</h3>${geoRow(t.capital, i.cap, i.capk)}${i.ck && DATA.culByKey[i.ck] ? `<div><span class="muted">${esc(t.culture)}:</span> <button type="button" class="linkchip" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button></div>` : row(t.culture, i.cul)}${row(t.religion, i.rel)}${geoRow(t.continent, i.cont, i.contk)}${row(t.locsStart, String(i.locs))}</div>
+      <div class="card"><h3>${esc(t.infoTitle)}</h3>${geoRow(t.capital, i.cap, i.capk)}${i.ck && DATA.culByKey[i.ck] ? `<div><span class="muted">${esc(t.culture)}:</span> <button type="button" class="linkchip" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button></div>` : row(t.culture, i.cul)}${i.rk && DATA.relByKey[i.rk] ? `<div><span class="muted">${esc(t.religion)}:</span> <button type="button" class="linkchip" data-open="rel.${esc(i.rk)}">${esc(i.rel)}</button></div>` : row(t.religion, i.rel)}${geoRow(t.continent, i.cont, i.contk)}${row(t.locsStart, String(i.locs))}</div>
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
@@ -715,6 +806,14 @@ function openFixed(i, push) {
 function openDetail(id, push = true) {
   const t = u();
   const i = items.find(x => x.id === id), d = $("#drawer");
+  if (id.startsWith("rgr.") && DATA.rgrByKey[id.slice(4)]) {
+    if (!relMode()) { state.mode = "r"; state.cont = ""; paintChrome(); render(); }
+    state.sel = null; openRGroup(DATA.rgrByKey[id.slice(4)], push); return;
+  }
+  if (id.startsWith("rel.") && DATA.relByKey[id.slice(4)]) {
+    state.sel = id; if (!relMode()) { state.mode = "r"; state.cont = ""; paintChrome(); }
+    openReligion(DATA.relByKey[id.slice(4)], push); return;
+  }
   if (id.startsWith("geo.") && DATA.geo && DATA.geo[id.slice(4)]) { state.sel = null; openGeo(id.slice(4), push); return; }
   if (id.startsWith("grp.")) {
     const g = DATA.grpByKey[id.slice(4)];
@@ -742,6 +841,7 @@ function openDetail(id, push = true) {
       ${advances(i)}
       ${principles(i)}
       ${cultureCard(i)}
+      ${religionCard(i)}
       <div class="card terr"><h3>${esc(t.terrTitle)}</h3>
         ${i.event ? `<div class="gilt" style="white-space:normal">${esc(t.eventNote)}</div>` : `<div>${t.needOwn(pct, i.need, i.total)}</div><div class="meter"><i style="width:${pct}%"></i></div>`}
         ${i.event ? "" : i.cap ? `<div class="muted small">${esc(t.capReq)}</div>` : `<div class="gilt">${esc(t.capFree)}</div>`}
@@ -838,7 +938,7 @@ const FLAGS = ["fRank", "fEff", "fCap", "fAllow", "fAdv", "fNoEvent"];
 for (const f of FLAGS) $("#" + f).addEventListener("change", e => { state[f] = e.target.checked; render(); });
 document.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
   const k = th.dataset.k, [ck, cd] = sortKey().split(":");
-  const desc = ["level", "rank", "nadv", "rankLevel", "locs", "nforms", "nst"].includes(k);
+  const desc = ["level", "rank", "nadv", "rankLevel", "locs", "nforms", "nst"].includes(k);  // numbers sort high-first
   setSort(`${k}:${ck === k ? (cd === "asc" ? "desc" : "asc") : (desc ? "desc" : "asc")}`);
   $("#sort").value = sortKey();
   render();
@@ -857,6 +957,8 @@ $("#drawer").addEventListener("click", e => {
   if (o) { openDetail(o.dataset.open); return; }
   const l = e.target.closest("[data-lang]");
   if (l) { filterLang(l.dataset.lang); return; }
+  const fr = e.target.closest("[data-filter-rgroup]");
+  if (fr) { if (state.sel) closeDetail(); if (!relMode()) setMode("r"); state.cont = fr.dataset.filterRgroup; paintChrome(); render(); closeDetail(); return; }
   const fg = e.target.closest("[data-filter-group]");
   if (fg) { filterGroup(fg.dataset.filterGroup); return; }
   const b = e.target.closest(".dbtn");
@@ -878,7 +980,7 @@ $("#theme").addEventListener("click", () => {
 });
 {
   const h = decodeURIComponent(location.hash.slice(1));
-  if (h.startsWith("tab.") && ["x", "c"].includes(h.slice(4))) state.mode = h.slice(4);
+  if (h.startsWith("tab.") && ["x", "c", "r"].includes(h.slice(4))) state.mode = h.slice(4);
   else if (h) state.sel = h;
 }
 setLang(lang);

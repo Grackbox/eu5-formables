@@ -452,6 +452,69 @@ for f in glob.glob(G + "in_game/common/advances/*.txt"):
             cul_adv_src[k] = v
             for c in hit:
                 culture_advs.setdefault(c, []).append(k)
+# ---------------------------------------------------------------- religions
+religion_info = {}  # religion -> group, color
+for f in glob.glob(G + "in_game/common/religions/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list) and get(v, "group"):
+            religion_info[k] = {"group": get(v, "group"), "color": get(v, "color")}
+all_religions = sorted(religion_info)
+
+
+def rel_eval(block, rel):
+    """Trigger judged on religion alone: True / False, or None when it says nothing about religion."""
+    grp = religion_info.get(rel, {}).get("group")
+    out = []
+    for k, op, v in block:
+        k = k.strip('"') if k else k
+        neg = op == "!="
+        if k == "religion" and isinstance(v, str):
+            r = _strip(v, "religion") == rel
+        elif k == "religion.group" and isinstance(v, str):
+            r = _strip(v, "religion_group") == grp
+        elif k == "religion" and isinstance(v, list):
+            r = rel_eval([(("religion.group" if a == "group" else a), b, c) for a, b, c in v], rel)
+        elif k in ("OR", "AND", "NOT", "NOR", "not") and isinstance(v, list):
+            sub = [rel_eval([x], rel) for x in v]
+            r = _comb_or(sub) if k == "OR" else _comb_and(sub) if k == "AND" else _neg(_comb_or(sub))
+        else:
+            r = None
+        out.append(_neg(r) if neg else r)
+    return _comb_and(out)
+
+
+def _mentions_religion(block):
+    s = repr(block)
+    return "'religion'" in s or "'religion.group'" in s
+
+
+formable_religions = {}
+for fid, b in formables:
+    trig = (get(b, "potential") or []) + (get(b, "allow") or [])
+    if not _mentions_religion(trig):
+        continue
+    res = {r: rel_eval(trig, r) for r in all_religions}
+    if any(x is False for x in res.values()):
+        formable_religions[fid] = sorted(r for r, x in res.items() if x is True)
+rel_adv_src, religion_advs = {}, {}
+for f in glob.glob(G + "in_game/common/advances/*.txt"):
+    for k, _, v in P(f):
+        if not (k and isinstance(v, list)):
+            continue
+        pot = get(v, "potential") or []
+        if not _mentions_religion(pot):
+            continue
+        hit = [r for r in all_religions if rel_eval(pot, r) is True]
+        if hit and len(hit) <= len(all_religions) // 2:
+            rel_adv_src[k] = v
+            for r in hit:
+                religion_advs.setdefault(r, []).append(k)
+start_by_religion = {}
+for t in start_tags:
+    r = start_def.get(t, {}).get("religion")
+    if r:
+        start_by_religion.setdefault(r, []).append(t)
+
 start_by_culture = {}
 for t in start_tags:
     c = start_def.get(t, {}).get("culture")
@@ -574,7 +637,10 @@ def trig(k, op, v):
         return node(T("Любая основная, принятая или терпимая культура:"),
                     trig_list(v) if isinstance(v, list) else [node(ref(v))], "group")
     if k == "religion.group":
-        return node(T("Группа религий НЕ {}" if neg else "Группа религий: {}", ref(v)))
+        return node(T("Группа религий НЕ {}" if neg else "Группа религий: {}", ref(v)), None, None,
+                    "rgr." + _strip(v, "religion_group") if isinstance(v, str) else None)
+    if k == "religion" and isinstance(v, str):
+        return node(pre + T("Религия: {}", ref(v)), None, None, "rel." + _strip(v, "religion"))
     if k == "tag":
         return node(pre + T("Страна: {}", f"{L(v, v)} ({v})"))
     if k == "this" and isinstance(v, str):
@@ -832,7 +898,7 @@ def build_lang(lang):
             "cap": L(cap, cap) if cap else "", "capk": loc_parent.get(cap) or "", "contk": cont or "",
             "cont": L(cont, cont) if cont else "—", "locs": len(locs),
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
-            "adv": adv, "nadv": len(adv), "ref": reforms(tag), "ck": d.get("culture"),
+            "adv": adv, "nadv": len(adv), "ref": reforms(tag), "ck": d.get("culture"), "rk": d.get("religion"),
         })
     fixed.sort(key=lambda x: (-x["locs"], x["name"]))
     for it in items:
@@ -892,7 +958,47 @@ def build_lang(lang):
         gadv = sorted([a for a, x in cadv.items() if g in x["gk"]], key=lambda a: (cadv[a]["age"], cadv[a]["n"]))
         groups.append({"id": "grp." + g, "key": g, "name": adj(g), "cultures": members_, "adv": gadv})
     geo = {g: {**x, "n": L(g, g)} for g, x in geo_info.items()}
-    return {"lang": lang, "geo": geo, "items": items, "fixed": fixed, "cultures": cultures, "groups": groups, "cadv": cadv, "ranks": ranks, "version": VERSION}
+
+    # Religions: advances (stored once in radv), formables they allow, nations that start with them.
+    for it in items:
+        it["rel"] = formable_religions.get(it["id"])   # None: no religion requirement
+    radv = {}
+    for k, v in rel_adv_src.items():
+        pot = get(v, "potential") or []
+        age = get(v, "age", "")
+        m = re.match(r"age_(\d+)_", age or "")
+        bonuses, unlocks = [], []
+        for kk, _, vv in v:
+            if not kk or not isinstance(vv, str):
+                continue
+            if kk in UNLOCKS:
+                unlocks.append(unlock_entry(kk, vv))
+            elif kk in mod_types:
+                bonuses.append(mod_line(kk, vv))
+        extra = [(a, b, c) for a, b, c in pot if not _mentions_religion([(a, b, c)])]
+        gk = sorted(set(re.findall(r"religion_group:(\w+)", repr(pot))))
+        radv[k] = {"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
+                   "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
+                   "cond": trig_list(extra), "d": L(k + "_desc", ""), "rgk": gk, "rgrp": [L(g, g) for g in gk]}
+    forms_by_rel = {}
+    for fid, rs in formable_religions.items():
+        for r in rs:
+            forms_by_rel.setdefault(r, []).append(fid)
+    religions = []
+    for r in all_religions:
+        info = religion_info[r]
+        advs = sorted(religion_advs.get(r, []), key=lambda a: (radv[a]["age"], radv[a]["n"]))
+        color = info.get("color")
+        religions.append({"id": "rel." + r, "key": r, "name": L(r, r), "gk": info["group"], "group": L(info["group"], info["group"]),
+                          "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
+                          "adv": advs, "nadv": len(advs), "forms": forms_by_rel.get(r, []), "st": sorted(start_by_religion.get(r, []))})
+    religions.sort(key=lambda x: (-x["nadv"], x["name"]))
+    rgroups = []
+    for g in sorted({x["group"] for x in religion_info.values()}):
+        mem = [r for r in all_religions if religion_info[r]["group"] == g]
+        gadv = sorted([a for a, x in radv.items() if g in x["rgk"]], key=lambda a: (radv[a]["age"], radv[a]["n"]))
+        rgroups.append({"id": "rgr." + g, "key": g, "name": L(g, g), "religions": mem, "adv": gadv})
+    return {"lang": lang, "geo": geo, "items": items, "fixed": fixed, "cultures": cultures, "groups": groups, "religions": religions, "rgroups": rgroups, "radv": radv, "cadv": cadv, "ranks": ranks, "version": VERSION}
 
 
 # ================================================================ output
