@@ -230,6 +230,9 @@ const UI = {
     fixedNote: "У этой страны нет тира: её нет в списке формируемых, поэтому сформировать её нельзя — можно только играть за неё с начала.",
     startTier: l => `Если начать за неё, вы уже на тире ${l}: сформировать можно только страну тира выше ${l}.`,
     otherFound: (n, fx) => `Ещё ${n} в списке «${fx ? "формируемые" : "нельзя сформировать"}»`, otherShow: "Показать",
+    refTitle: n => `Государственные принципы · ${n}`, refShort: "пр.",
+    refNote: "Особые реформы правления этой страны. Обычно их сначала открывает решение, событие или улучшение.",
+    srcKind: { decision: "Решение", advance: "Улучшение", event: "Событие" }, srcUnknown: "Открывается особым условием", srcAlways: "Доступен сразу",
     twinBadge: t => `≠ формируемая ${t}`, twinOpen: "Открыть",
     twinFixedNote: (n, t) => `Не путать с формируемой страной «${n}» (${t}) — это другой тег с тем же названием.`,
     twinFormNote: t => `Не путать со стартовой страной ${t} с тем же названием — её сформировать нельзя.`,
@@ -271,6 +274,9 @@ const UI = {
     fixedNote: "This nation has no tier: it isn't in the formable list, so it can't be formed. You can only play it from the start.",
     startTier: l => `If you start as this nation, you are already tier ${l}: you can only form a nation above tier ${l}.`,
     otherFound: (n, fx) => `${n} more in the ${fx ? "formable" : "can't be formed"} list`, otherShow: "Show",
+    refTitle: n => `State principles · ${n}`, refShort: "pr.",
+    refNote: "Government reforms unique to this nation. Most of them are first unlocked by a decision, event or advance.",
+    srcKind: { decision: "Decision", advance: "Advance", event: "Event" }, srcUnknown: "Unlocked by a special condition", srcAlways: "Available right away",
     twinBadge: t => `≠ formable ${t}`, twinOpen: "Open",
     twinFixedNote: (n, t) => `Not the same as the formable nation ${n} (${t}): a different tag with the same name.`,
     twinFormNote: t => `Not the same as the starting nation ${t} with the same name, which can't be formed.`,
@@ -329,14 +335,14 @@ function prepare() {
   for (const it of items) {
     it.variant = nameCount[it.name] > 1 ? it.id.replace(/_f$/, "") : "";
     it.hay = [it.name, it.tag, it.cont, ...Object.values(it.terr).flat().map(e => e.n), ...it.pot.map(flat), ...it.allow.map(flat),
-      ...it.adv.map(a => a.n)].join(" ").toLowerCase();
+      ...it.adv.map(a => a.n), ...(it.ref || []).map(r => r.n)].join(" ").toLowerCase();
     it.rankLevel = Math.max(0, ...it.ranks.map(r => DATA.ranks[r]?.level || 0));
   }
   const byName = {};
   for (const it of items) (byName[it.name] ||= []).push(it);
   for (const it of DATA.fixed || []) it.twin = (byName[it.name] || [])[0] || null;
   for (const it of items) it.twinFixed = (DATA.fixed || []).find(x => x.name === it.name) || null;
-  for (const it of DATA.fixed || []) it.hay = [it.name, it.tag, it.cul, it.rel, it.cap, it.cont, it.rank, ...it.adv.map(a => a.n)].join(" ").toLowerCase();
+  for (const it of DATA.fixed || []) it.hay = [it.name, it.tag, it.cul, it.rel, it.cap, it.cont, it.rank, ...it.adv.map(a => a.n), ...(it.ref || []).map(r => r.n)].join(" ").toLowerCase();
 }
 const fixedMode = () => state.mode === "x";
 const curList = () => fixedMode() ? (DATA.fixed || []) : items;
@@ -417,7 +423,7 @@ function render() {
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.tag)}${i.twin ? `<span class="variant">${esc(t.twinBadge(i.twin.tag))}</span>` : ""}</div></div></div></td>
       <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${esc(i.cul)}</td><td>${esc(i.rel)}</td><td>${esc(i.cont)}</td>
-      <td class="num">${i.locs}</td><td class="num">${i.nadv || `<span class="muted">—</span>`}</td>
+      <td class="num">${i.locs}</td><td class="num">${i.nadv || `<span class="muted">—</span>`}${i.ref && i.ref.length ? `<span class="muted small"> +${i.ref.length} ${esc(t.refShort)}</span>` : ""}</td>
     </tr>`).join("");
   } else $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
@@ -427,7 +433,7 @@ function render() {
       <td><span class="rule">${esc(t.rules[i.rule] || i.rule)}</span></td>
       <td>${esc(i.cont)}</td>
       <td>${terrSummary(i)}</td>
-      <td class="num">${i.nadv || `<span class="muted">—</span>`}</td>
+      <td class="num">${i.nadv || `<span class="muted">—</span>`}${i.ref && i.ref.length ? `<span class="muted small"> +${i.ref.length} ${esc(t.refShort)}</span>` : ""}</td>
       <td>${i.ranks.length ? `<span class="gilt">↑ ${i.ranks.map(r => esc(DATA.ranks[r]?.name || r)).join(" / ")}</span>` : i.eff.length ? `<span class="muted small">${esc(t.special)}</span>` : ""}</td>
     </tr>`).join("");
   const [k, dir] = sortKey().split(":");
@@ -440,6 +446,20 @@ function tree(nodes) {
     const k = (n.k || "").startsWith("rank:") ? "rank" : (n.k || "plain");
     return `<li class="k-${k}"><span>${esc(n.t)}</span>${tree(n.c)}</li>`;
   }).join("")}</ul>`;
+}
+
+function principles(i) {
+  const t = u();
+  if (!i.ref || !i.ref.length) return "";
+  const src = r => r.src.length ? r.src.map(s => `${esc(t.srcKind[s.k] || s.k)}: ${esc(s.n)}`).join(" · ") : (r.locked ? esc(t.srcUnknown) : esc(t.srcAlways));
+  return `<div class="card wide"><h3>${esc(t.refTitle(i.ref.length))}</h3><div class="muted small">${esc(t.refNote)}</div>` +
+    i.ref.map(r => `<div class="adv">
+      <div><div class="an">${esc(r.n)}</div>
+        ${r.g.map(g => `${g.if.length ? `<div class="muted small">${g.if.map(c => esc(c.t)).join(" ")}</div>` : ""}<div class="ab">${g.m.map(m => `<span class="b">${esc(m)}</span>`).join("")}</div>`).join("")}</div>
+      <div class="side"><div>${[r.gov, r.ageN && (UI[lang] ? t.age(r.ageN) : r.ageN)].filter(Boolean).map(esc).join(" · ")}${r.d ? ` · <button type="button" class="dbtn" aria-expanded="false">${esc(t.descr)}</button>` : ""}</div>
+        <div>${src(r)}</div>
+        ${r.cond.length === 1 && !r.cond[0].c ? `<div>${esc(t.extra)} ${esc(r.cond[0].t)}</div>` : r.cond.length ? `<div>${esc(t.extra)}</div>${tree(r.cond)}` : ""}</div>
+      ${r.d ? `<div class="ad" hidden>${esc(r.d)}</div>` : ""}</div>`).join("") + `</div>`;
 }
 
 function advances(i) {
@@ -468,6 +488,7 @@ function openFixed(i, push) {
     ${i.twin ? `<p class="small">${esc(t.twinFixedNote(i.twin.name, i.twin.tag))} <button type="button" class="dbtn" data-open="${esc(i.twin.id)}">${esc(t.twinOpen)}</button></p>` : ""}
     <div class="cards">
       ${advances(i)}
+      ${principles(i)}
       <div class="card"><h3>${esc(t.infoTitle)}</h3>${row(t.capital, i.cap)}${row(t.culture, i.cul)}${row(t.religion, i.rel)}${row(t.continent, i.cont)}${row(t.locsStart, String(i.locs))}</div>
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
@@ -497,6 +518,7 @@ function openDetail(id, push = true) {
     ${i.desc ? `<p class="desc clamp" title="${esc(t.descr)}">${esc(i.desc)}</p>` : ""}
     <div class="cards">
       ${advances(i)}
+      ${principles(i)}
       <div class="card terr"><h3>${esc(t.terrTitle)}</h3>
         ${i.event ? `<div class="gilt" style="white-space:normal">${esc(t.eventNote)}</div>` : `<div>${t.needOwn(pct, i.need, i.total)}</div><div class="meter"><i style="width:${pct}%"></i></div>`}
         ${i.event ? "" : i.cap ? `<div class="muted small">${esc(t.capReq)}</div>` : `<div class="gilt">${esc(t.capFree)}</div>`}

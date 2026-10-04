@@ -213,6 +213,43 @@ def tags_in(block):
     return found
 
 
+# Country-specific government reforms ("state principles"): reforms whose potential names a tag.
+reform_src = {}  # tag -> [(id, block)]
+for f in glob.glob(G + "in_game/common/government_reforms/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            for tg in tags_in(get(v, "potential") or []):
+                reform_src.setdefault(tg, []).append((k, v))
+
+
+def _unlock_targets(block, out):
+    """Collect reform ids unlocked anywhere inside a block."""
+    for k, _, v in block:
+        if k == "unlock_government_reform_effect" and isinstance(v, list):
+            t = get(v, "type")
+            if t:
+                out.add(t)
+        elif k == "unlock_government_reform" and isinstance(v, str):
+            out.add(v)
+        elif isinstance(v, list):
+            _unlock_targets(v, out)
+
+
+reform_unlockers = {}  # reform id -> [("decision"|"advance"|"formable"|"event", key)]
+for kind, pattern in (("decision", "in_game/common/decisions/*.txt"), ("advance", "in_game/common/advances/*.txt"),
+                      ("event", "in_game/events/**/*.txt")):
+    for f in glob.glob(G + pattern, recursive=True):
+        try:
+            blocks = P(f)
+        except Exception:
+            continue
+        for k, _, v in blocks:
+            if k and isinstance(v, list):
+                found = set()
+                _unlock_targets(v, found)
+                for r in found:
+                    reform_unlockers.setdefault(r, []).append((kind, k))
+
 adv_src = {}  # tag -> [(id, block)]
 for f in glob.glob(G + "in_game/common/advances/*.txt"):
     for k, _, v in P(f):
@@ -492,6 +529,32 @@ def build_lang(lang):
         ranks[k] = {"name": L(k, k), "level": rank_level[k],
                     "mods": [mod_line(a, b) for a, _, b in rm if a and not a.startswith("ai_") and isinstance(b, str)]}
 
+    def reforms(tag):
+        out = []
+        for k, v in reform_src.get(tag, []):
+            pot = get(v, "potential") or []
+            groups = []
+            for kk, _, blk in v:
+                if kk != "country_modifier" or not isinstance(blk, list):
+                    continue
+                cond = get(blk, "potential_trigger")
+                lines = [mod_line(a, b) for a, _, b in blk if a and a != "potential_trigger" and isinstance(b, str)]
+                if lines:
+                    groups.append({"if": trig_list(cond) if cond else [], "m": lines})
+            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and a != "has_unlocked_government_reform_trigger"
+                     and not (a == "OR" and isinstance(c, list) and all(TAG_RE.match(x or "") for x, _, _ in c))]
+            src = []
+            for kind, key in reform_unlockers.get(k, []):
+                name = L(key + ".title", "") or L(key + ".t", "") or (L(key, "") if kind != "event" else "")
+                src.append({"k": kind, "n": name or key})
+            age = get(v, "age", "")
+            m = re.match(r"age_(\d+)_", age or "")
+            out.append({"id": k, "n": L(k, k), "d": L(k + "_desc", ""), "gov": L(get(v, "government", ""), "") if get(v, "government") else "",
+                        "age": int(m.group(1)) if m else 0, "ageN": L(age, "") if age else "",
+                        "g": groups, "cond": trig_list(extra), "src": src,
+                        "locked": any(a == "has_unlocked_government_reform_trigger" for a, _, _ in pot)})
+        return sorted(out, key=lambda r: (r["age"], r["n"]))
+
     def advances(tag):
         out = []
         for k, v in adv_src.get(tag, []):
@@ -546,7 +609,7 @@ def build_lang(lang):
             "cont": L(cont[0][0], cont[0][0]) if cont else (T("Только событием") if by_event else "—"),
             "pot": trig_list(pot_raw), "allow": trig_list(get(b, "allow") or []), "eff": effect,
             "ranks": sorted(set(re.findall(r'"k": "rank:(\w+)"', json.dumps(effect, ensure_ascii=False)))),
-            "event": by_event, "start": tag in start_tags, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
+            "event": by_event, "start": tag in start_tags, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv), "ref": reforms(tag),
         })
     items.sort(key=lambda x: (-x["level"], x["name"]))
 
@@ -568,7 +631,7 @@ def build_lang(lang):
             "cul": adj(d["culture"]) if d.get("culture") else "", "rel": L(d["religion"], "") if d.get("religion") else "",
             "cap": L(cap, cap) if cap else "", "cont": L(cont, cont) if cont else "—", "locs": len(locs),
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
-            "adv": adv, "nadv": len(adv),
+            "adv": adv, "nadv": len(adv), "ref": reforms(tag),
         })
     fixed.sort(key=lambda x: (-x["locs"], x["name"]))
     return {"lang": lang, "items": items, "fixed": fixed, "ranks": ranks, "version": VERSION}

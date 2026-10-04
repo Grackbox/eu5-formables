@@ -96,6 +96,12 @@ def clean(s, loc, depth=0):
     s = re.sub(r"\[Concept\('[^']*',\s*'([^']*)'\)\|?\w*\]", r"\1", s)
     s = re.sub(r"\[GetCountry\('(\w+)'\)\.Custom\('CL_ACC'\)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1) + "_RU_ACC_CL") or loc.get(m.group(1), m.group(1)), loc, depth + 1), s)
+    # [ShowAreaName('balearics_area')], [ShowScriptedGeographyNameWithNoTooltip('x')], ... -> localized name
+    s = re.sub(r"\[Show\w*?Name(?:WithNoTooltip)?\('([\w.]+)'\)\|?\w*\]",
+               lambda m: clean(loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
+    # [GetCountry('MLL').GetAdjective] / .GetName... / .GetLongName...
+    s = re.sub(r"\[GetCountry\('(\w+)'\)\.(GetAdjective|Get\w*Name\w*)\|?\w*\]",
+               lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "GetAdjective" else ""), m.group(1)), loc, depth + 1), s)
     s = re.sub(r"#ONCLICK:\S*\s?", "", s)
     s = re.sub(r"#TOOLTIP:[^,]*,[^,]*,X\s?", "", s)
     s = re.sub(r'#[A-Za-z_]+(?:;[A-Za-z_]+)* ?', '', s)
