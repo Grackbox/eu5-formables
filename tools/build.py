@@ -283,6 +283,134 @@ def start_locations(v):
 formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
              if fid and isinstance(b, list)]
 
+# ---------------------------------------------------------------- cultures
+culture_info = {}  # culture -> groups, dialect, color
+for f in glob.glob(G + "in_game/common/cultures/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            groups = get(v, "culture_groups") or []
+            culture_info[k] = {"groups": [x for _, _, x in groups if isinstance(x, str)], "dialect": get(v, "language"),
+                               "color": get(v, "color")}
+dialect_lang = {}
+
+
+def _dialects(block, lang):
+    for k, _, v in block:
+        if k and isinstance(v, list):
+            if k.endswith("_dialect"):
+                dialect_lang[k] = lang
+            _dialects(v, lang)
+
+
+for f in glob.glob(G + "in_game/common/languages/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            dialect_lang[k] = k
+            _dialects(v, k)
+
+
+def _strip(v, prefix):
+    return v.split(":", 1)[1] if isinstance(v, str) and v.startswith(prefix + ":") else v
+
+
+def _comb_and(vals):
+    vals = [x for x in vals if x is not None]
+    return None if not vals else (False if False in vals else True)
+
+
+def _comb_or(vals):
+    if any(x is None for x in vals):   # a non-culture alternative: culture isn't required
+        return True if True in vals else None
+    return True in vals if vals else None
+
+
+def _neg(x):
+    return None if x is None else not x
+
+
+def cul_scope(block, cul):
+    """Culture-scope block (inside `culture = { ... }`) for one culture."""
+    info = culture_info.get(cul, {"groups": [], "dialect": None})
+    out = []
+    for k, op, v in block:
+        neg = op == "!="
+        if k == "has_culture_group":
+            r = _strip(v, "culture_group") in info["groups"]
+        elif k in ("this", "merged_culture_group_contains_culture") and isinstance(v, str):
+            r = _strip(v, "culture") == cul
+        elif k == "language":
+            r = dialect_lang.get(info["dialect"]) == _strip(v, "language")
+        elif k == "dialect":
+            r = info["dialect"] == _strip(v, "dialect")
+        elif k in ("OR", "AND", "NOT", "NOR", "not") and isinstance(v, list):
+            sub = [cul_scope([x], cul) for x in v]
+            r = _comb_or(sub) if k == "OR" else _comb_and(sub) if k == "AND" else _neg(_comb_or(sub))
+        else:
+            r = None
+        out.append(_neg(r) if neg else r)
+    return _comb_and(out)
+
+
+def cul_eval(block, cul):
+    """Country-scope trigger judged on culture alone: True / False, or None when it says nothing about culture."""
+    info = culture_info.get(cul, {"groups": [], "dialect": None})
+    out = []
+    for k, op, v in block:
+        k = k.strip('"') if k else k
+        neg = op == "!="
+        if k in ("culture", "any_primary_or_accepted_or_tolerated_culture") and isinstance(v, list):
+            r = cul_scope(v, cul)
+        elif k == "culture" and isinstance(v, str):
+            r = _strip(v, "culture") == cul
+        elif k == "culture.language":
+            r = dialect_lang.get(info["dialect"]) == _strip(v, "language")
+        elif k == "culture.dialect":
+            r = info["dialect"] == _strip(v, "dialect")
+        elif k in ("OR", "AND", "NOT", "NOR", "not") and isinstance(v, list):
+            sub = [cul_eval([x], cul) for x in v]
+            r = _comb_or(sub) if k == "OR" else _comb_and(sub) if k == "AND" else _neg(_comb_or(sub))
+        else:
+            r = None
+        out.append(_neg(r) if neg else r)
+    return _comb_and(out)
+
+
+def _mentions_culture(block):
+    s = repr(block)
+    return any(w in s for w in ("'culture'", "culture.language", "culture.dialect", "any_primary_or_accepted_or_tolerated_culture"))
+
+
+all_cultures = sorted(culture_info)
+# formable -> cultures that meet its culture conditions (potential and allow together)
+formable_cultures = {}
+for fid, b in formables:
+    trig = (get(b, "potential") or []) + (get(b, "allow") or [])
+    if not _mentions_culture(trig):
+        continue
+    res = {c: cul_eval(trig, c) for c in all_cultures}
+    if any(r is False for r in res.values()):
+        formable_cultures[fid] = sorted(c for c, r in res.items() if r is True)
+# advances gated by culture -> cultures that unlock them
+cul_adv_src = {}
+culture_advs = {}
+for f in glob.glob(G + "in_game/common/advances/*.txt"):
+    for k, _, v in P(f):
+        if not (k and isinstance(v, list)):
+            continue
+        pot = get(v, "potential") or []
+        if not _mentions_culture(pot):
+            continue
+        hit = [c for c in all_cultures if cul_eval(pot, c) is True]
+        if hit and len(hit) <= len(all_cultures) // 2:  # "everyone except X" advances are not culture advances
+            cul_adv_src[k] = v
+            for c in hit:
+                culture_advs.setdefault(c, []).append(k)
+start_by_culture = {}
+for t in start_tags:
+    c = start_def.get(t, {}).get("culture")
+    if c:
+        start_by_culture.setdefault(c, []).append(t)
+
 
 # ================================================================ rendering (per language)
 def fmt_num(x):
@@ -631,10 +759,50 @@ def build_lang(lang):
             "cul": adj(d["culture"]) if d.get("culture") else "", "rel": L(d["religion"], "") if d.get("religion") else "",
             "cap": L(cap, cap) if cap else "", "cont": L(cont, cont) if cont else "—", "locs": len(locs),
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
-            "adv": adv, "nadv": len(adv), "ref": reforms(tag),
+            "adv": adv, "nadv": len(adv), "ref": reforms(tag), "ck": d.get("culture"),
         })
     fixed.sort(key=lambda x: (-x["locs"], x["name"]))
-    return {"lang": lang, "items": items, "fixed": fixed, "ranks": ranks, "version": VERSION}
+    for it in items:
+        cul = formable_cultures.get(it["id"])
+        it["cul"] = cul if cul is not None else None   # None: no culture requirement
+
+    # Cultures: their advances (stored once in cadv), formables they can form, nations that start with them.
+    cadv = {}
+    for k, v in cul_adv_src.items():
+        pot = get(v, "potential") or []
+        age = get(v, "age", "")
+        m = re.match(r"age_(\d+)_", age or "")
+        bonuses, unlocks = [], []
+        for kk, _, vv in v:
+            if not kk or not isinstance(vv, str):
+                continue
+            if kk in UNLOCKS:
+                unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
+            elif kk in mod_types:
+                bonuses.append(mod_line(kk, vv))
+        extra = [(a, b, c) for a, b, c in pot if cul_eval([(a, b, c)], all_cultures[0]) is None
+                 and not (a and TAG_RE.match(a))]
+        cadv[k] = {"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
+                   "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
+                   "cond": trig_list(extra), "d": L(k + "_desc", "")}
+    forms_by_culture = {}
+    for fid, cs in formable_cultures.items():
+        for c in cs:
+            forms_by_culture.setdefault(c, []).append(fid)
+    cultures = []
+    for c in all_cultures:
+        info = culture_info[c]
+        advs = sorted(culture_advs.get(c, []), key=lambda a: (cadv[a]["age"], cadv[a]["n"]))
+        color = info.get("color")
+        lang_key = dialect_lang.get(info.get("dialect"))
+        cultures.append({
+            "id": "cul." + c, "key": c, "name": adj(c),
+            "groups": [adj(g) for g in info["groups"]], "lang": adj(lang_key, lang_word=True) if lang_key else "",
+            "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
+            "adv": advs, "nadv": len(advs), "forms": forms_by_culture.get(c, []), "st": sorted(start_by_culture.get(c, [])),
+        })
+    cultures.sort(key=lambda x: (-x["nadv"], x["name"]))
+    return {"lang": lang, "items": items, "fixed": fixed, "cultures": cultures, "cadv": cadv, "ranks": ranks, "version": VERSION}
 
 
 # ================================================================ output
@@ -659,7 +827,9 @@ def main():
     tpl = tpl.replace("__REV__", rev)
     with open(os.path.join(HERE, "site", "index.html"), "w", encoding="utf-8") as fh:
         fh.write(tpl.replace("/*__EMBED__*/null", "null"))
-    standalone = full_page(tpl.replace("/*__EMBED__*/null", json.dumps(all_data, ensure_ascii=False, separators=(",", ":"))))
+    # the offline file embeds Russian and English only, to stay a reasonable size
+    embed = {k: all_data[k] for k in ("russian", "english")}
+    standalone = full_page(tpl.replace("/*__EMBED__*/null", json.dumps(embed, ensure_ascii=False, separators=(",", ":"))))
     # GitHub Pages version: a complete document that loads data/<lang>.json
     with open(os.path.join(HERE, "site", "pages.html"), "w", encoding="utf-8") as fh:
         fh.write(full_page(tpl.replace("/*__EMBED__*/null", "null")))
