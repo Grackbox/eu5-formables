@@ -120,6 +120,10 @@ details.help p { max-width: 75ch; }
 .dhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
 .dhead h2 { margin: 0; font: 700 30px/1.1 var(--display); }
 .dhead .sw { width: 22px; height: 22px; }
+.dback { margin-left: auto; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--rule); background: transparent;
+  cursor: pointer; font-size: 17px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; color: var(--ink); }
+.dback:hover { border-color: var(--gilt); color: var(--gilt); }
+.dback + .close { margin-left: 6px; }
 .close { margin-left: auto; border: 1px solid var(--rule); background: transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .desc { font: italic 600 17px/1.45 var(--display); color: var(--ink-2); max-width: 72ch; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; margin-top: 12px; }
@@ -236,7 +240,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "56834dd8ad"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "4dbc3e19e3"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -255,7 +259,7 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
-    fAdvC: "Есть культурные улучшения",
+    fAdvC: "Есть культурные улучшения", back: "Назад",
     geoLv: { continent: "Континент", sub_continent: "Субконтинент", region: "Регион", area: "Область", province: "Провинция" },
     geoLocs: n => `${n} лок.`, geoIn: "Входит в", geoKids: n => `Состав · ${n}`,
     geoForms: n => `Формируемые страны, которым нужны эти земли · ${n}`, geoFormsNone: "Ни одной формируемой стране эти земли не нужны.",
@@ -320,7 +324,7 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
-    fAdvC: "Has culture advances",
+    fAdvC: "Has culture advances", back: "Back",
     geoLv: { continent: "Continent", sub_continent: "Subcontinent", region: "Region", area: "Area", province: "Province" },
     geoLocs: n => `${n} loc.`, geoIn: "Part of", geoKids: n => `Contains · ${n}`,
     geoForms: n => `Formable nations that need these lands · ${n}`, geoFormsNone: "No formable nation needs these lands.",
@@ -605,7 +609,7 @@ function openGeo(key, push) {
   const owners = g.o.map(([tag, n]) => { const x = nationLink(tag); return x.id ? { ...x, b: `${tag} · ${n}` } : null; }).filter(Boolean);
   d.innerHTML = `
     <div class="dhead"><h2 id="dtitle">${esc(g.n)}</h2><span class="tag">${esc(t.geoLv[g.lv] || g.lv)} · ${esc(key)} · ${esc(t.geoLocs(g.c))}</span>
-      <button class="close" type="button" id="close">${esc(t.close)}</button></div>
+      ${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     ${par.length ? `<p class="small"><span class="muted">${esc(t.geoIn)}:</span> ${linkChips(par)}</p>` : ""}
     <div class="cards">
       <div class="card wide"><h3>${esc(t.geoForms(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.geoFormsNone)}</div>`}</div>
@@ -624,7 +628,7 @@ function openGroup(g, push) {
   const cul = g.cultures.map(k => DATA.culByKey[k]).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name)).map(c => ({ id: c.id, label: c.name }));
   d.innerHTML = `
     <div class="dhead"><h2 id="dtitle">${esc(g.name)}</h2><span class="tag">${esc(t.grpKind)} · ${esc(g.key)}</span>
-      <button class="close" type="button" id="close">${esc(t.close)}</button></div>
+      ${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     <p><button type="button" class="linkchip" data-filter-group="${esc(g.name)}">${esc(t.grpShow)}</button></p>
     <div class="cards">
       ${advs.length ? advances({ adv: advs.map(a => ({ ...a, gk: [], grp: [] })), tag: "", name: g.name }, t.grpTitle(advs.length), t.grpNote)
@@ -646,7 +650,7 @@ function openCulture(c, push) {
   const st = c.st.map(nationLink).filter(x => x.id);
   d.innerHTML = `
     <div class="dhead"><span class="sw" style="background:${c.color || "transparent"}"></span><h2 id="dtitle">${esc(c.name)}</h2>
-      <span class="tag">${esc(c.key)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
+      <span class="tag">${esc(c.key)}</span>${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     <p class="small"><span class="muted">${esc(t.groupsL)}:</span> ${c.gk.map((g, n) => `<button type="button" class="linkchip" data-open="grp.${esc(g)}">${esc(c.groups[n])}</button>`).join(" ") || "—"}
       · <span class="muted">${esc(t.langL)}:</span> ${c.lang ? `<button type="button" class="linkchip" data-lang="${esc(c.lang)}">${esc(c.lang)}</button>` : "—"}${c.dia ? ` <span class="muted">(${esc(c.dia.toLowerCase())})</span>` : ""}</p>
     <div class="cards">
@@ -693,7 +697,7 @@ function openFixed(i, push) {
   d.innerHTML = `
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
       <span class="tag">${esc(i.tag)}</span>${i.rank ? `<span class="rule">${esc(i.rank)}</span>` : ""}
-      <button class="close" type="button" id="close">${esc(t.close)}</button></div>
+      ${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     <p class="gilt" style="white-space:normal">${esc(t.fixedNote)}</p>
     ${i.twin ? `<p class="small">${esc(t.twinFixedNote(i.twin.name, i.twin.tag))} <button type="button" class="dbtn" data-open="${esc(i.twin.id)}">${esc(t.twinOpen)}</button></p>` : ""}
     <div class="cards">
@@ -730,7 +734,7 @@ function openDetail(id, push = true) {
   d.innerHTML = `
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
       <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
-      <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
+      <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span>${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     ${i.start ? `<p class="muted small">${esc(t.startNote)} ${esc(t.startTier(i.level))}</p>` : ""}
     ${i.twinFixed ? `<p class="small">${esc(t.twinFormNote(i.twinFixed.tag))} <button type="button" class="dbtn" data-open="${esc(i.twinFixed.id)}">${esc(t.twinOpen)}</button></p>` : ""}
     ${i.desc ? `<p class="desc clamp" title="${esc(t.descr)}">${esc(i.desc)}</p>` : ""}
@@ -754,11 +758,16 @@ function openDetail(id, push = true) {
   render();
   $("#close").focus({ preventScroll: true });
 }
+function backBtn() {
+  // shown only when there is a step inside the site to go back to
+  const can = history.state && history.state.d > 0;
+  return can ? `<button class="dback" type="button" id="dback" title="${esc(u().back)}" aria-label="${esc(u().back)}">↶</button>` : "";
+}
 const tabHash = () => state.mode === "f" ? "" : "tab." + state.mode;
 function nav(h) {
   // one history entry per card or list, so the browser's back and forward buttons walk through them
   if (decodeURIComponent(location.hash.slice(1)) === h) return;
-  try { history.pushState(null, "", h ? "#" + h : location.pathname + location.search); } catch {}
+  try { history.pushState({ d: ((history.state && history.state.d) || 0) + 1 }, "", h ? "#" + h : location.pathname + location.search); } catch {}
 }
 function closeDetail(fromHistory = false) {
   $("#drawer").classList.remove("open"); $("#backdrop").hidden = true;
@@ -843,6 +852,7 @@ $("#reset").addEventListener("click", () => {
 });
 $("#backdrop").addEventListener("click", closeDetail);
 $("#drawer").addEventListener("click", e => {
+  if (e.target.closest("#dback")) { history.back(); return; }
   const o = e.target.closest("[data-open]");
   if (o) { openDetail(o.dataset.open); return; }
   const l = e.target.closest("[data-lang]");
