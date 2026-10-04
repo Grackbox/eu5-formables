@@ -223,6 +223,24 @@ _setup = get(get(P(G + "main_menu/setup/1337/10_countries.txt"), "countries") or
 start_tags = {k for k, _, v in _setup if k and isinstance(v, list) and
               any(kk and kk.startswith("own") and isinstance(vv, list) and vv for kk, _, vv in v)}
 
+# What each starting nation looks like in 1337, for the list of nations that can't be formed.
+start_setup = {k: v for k, _, v in _setup if k in start_tags}
+start_def = {}
+for f in glob.glob(G + "in_game/setup/countries/*.txt"):
+    for k, _, v in P(f):
+        if k in start_tags and isinstance(v, list):
+            start_def[k] = {"culture": get(v, "culture_definition"), "religion": get(v, "religion_definition"),
+                            "color": get(v, "color")}
+
+
+def start_locations(v):
+    locs = set()
+    for kk, _, vv in v:
+        if kk and kk.startswith("own") and isinstance(vv, list):
+            locs |= {x for _, _, x in vv if isinstance(x, str)}
+    return locs
+
+
 formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
              if fid and isinstance(b, list)]
 
@@ -529,7 +547,29 @@ def build_lang(lang):
             "event": by_event, "start": tag in start_tags, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
         })
     items.sort(key=lambda x: (-x["level"], x["name"]))
-    return {"lang": lang, "items": items, "ranks": ranks, "version": VERSION}
+
+    # Nations that exist in 1337 but have no formable entry (no tier): they can't be formed.
+    formable_tags = {get(b, "tag", "") for _, b in formables}
+    fixed = []
+    for tag, v in start_setup.items():
+        if tag in formable_tags:
+            continue
+        d = start_def.get(tag, {})
+        locs = start_locations(v)
+        cap = get(v, "capital")
+        cont = loc_continent.get(cap) or (Counter(loc_continent.get(l) for l in locs if loc_continent.get(l)).most_common(1) or [[None]])[0][0]
+        rank = get(v, "country_rank")
+        color = d.get("color")
+        adv = advances(tag)
+        fixed.append({
+            "id": tag, "tag": tag, "name": L(tag, tag), "rank": L(rank, "") if rank else "", "rankLevel": rank_level.get(rank, 0),
+            "cul": adj(d["culture"]) if d.get("culture") else "", "rel": L(d["religion"], "") if d.get("religion") else "",
+            "cap": L(cap, cap) if cap else "", "cont": L(cont, cont) if cont else "—", "locs": len(locs),
+            "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
+            "adv": adv, "nadv": len(adv),
+        })
+    fixed.sort(key=lambda x: (-x["locs"], x["name"]))
+    return {"lang": lang, "items": items, "fixed": fixed, "ranks": ranks, "version": VERSION}
 
 
 # ================================================================ output

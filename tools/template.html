@@ -77,6 +77,7 @@ tbody tr.sel { box-shadow: inset 3px 0 0 var(--gilt); }
 .num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .variant { font-size: 11px; color: var(--gilt); margin-left: 6px; }
 .empty { padding: 30px; text-align: center; color: var(--ink-2); }
+.fixed-mode .fo { display: none !important; }
 .loading { padding: 40px; text-align: center; color: var(--ink-2); }
 @media (max-width: 640px) {
   th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4), th:nth-child(6), td:nth-child(6) { display: none; }
@@ -157,17 +158,18 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
   <div class="layout">
     <aside id="filters">
       <div class="fgroup"><label class="ftitle" for="q" data-t="search"></label><input type="search" id="q"></div>
-      <div class="fgroup"><span class="ftitle" data-t="tier"></span><div class="chips" id="tiers"></div></div>
-      <div class="fgroup"><span class="ftitle" data-t="rule"></span><div class="chips" id="rules"></div></div>
+      <div class="fgroup"><span class="ftitle" data-t="tier"></span><div class="chips fo" id="tiers"></div>
+        <div class="chips" style="margin-top:6px"><button type="button" class="chip" id="fixedBtn" aria-pressed="false"></button></div></div>
+      <div class="fgroup fo"><span class="ftitle" data-t="rule"></span><div class="chips" id="rules"></div></div>
       <div class="fgroup"><label class="ftitle" for="cont" data-t="continent"></label><select id="cont"></select></div>
       <div class="fgroup">
         <span class="ftitle" data-t="features"></span>
-        <label class="check"><input type="checkbox" id="fRank"> <span data-t="fRank"></span></label>
-        <label class="check"><input type="checkbox" id="fEff"> <span data-t="fEff"></span></label>
-        <label class="check"><input type="checkbox" id="fCap"> <span data-t="fCap"></span></label>
-        <label class="check"><input type="checkbox" id="fAllow"> <span data-t="fAllow"></span></label>
+        <label class="check fo"><input type="checkbox" id="fRank"> <span data-t="fRank"></span></label>
+        <label class="check fo"><input type="checkbox" id="fEff"> <span data-t="fEff"></span></label>
+        <label class="check fo"><input type="checkbox" id="fCap"> <span data-t="fCap"></span></label>
+        <label class="check fo"><input type="checkbox" id="fAllow"> <span data-t="fAllow"></span></label>
         <label class="check"><input type="checkbox" id="fAdv"> <span data-t="fAdv"></span></label>
-        <label class="check"><input type="checkbox" id="fNoEvent"> <span data-t="fNoEvent"></span></label>
+        <label class="check fo"><input type="checkbox" id="fNoEvent"> <span data-t="fNoEvent"></span></label>
       </div>
       <div class="fgroup"><label class="ftitle" for="sort" data-t="sort"></label><select id="sort"></select></div>
       <button class="reset" id="reset" type="button" data-t="reset"></button>
@@ -177,7 +179,12 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
       <div class="bar"><span id="count"></span><span data-t="hint"></span></div>
       <div class="tablewrap">
         <table>
-          <thead><tr>
+          <thead id="headX" hidden><tr>
+            <th data-k="name" data-t="colName"></th><th data-k="rankLevel" data-t="colRank"></th><th data-k="cul" data-t="colCul"></th>
+            <th data-k="rel" data-t="colRel"></th><th data-k="cont" data-t="colCont"></th><th data-k="locs" data-t="colLocs"></th>
+            <th data-k="nadv" data-t="colAdv"></th>
+          </tr></thead>
+          <thead id="headF"><tr>
             <th data-k="name" data-t="colName"></th><th data-k="level" data-t="colTier"></th><th data-k="rule" data-t="colRule"></th>
             <th data-k="cont" data-t="colCont"></th><th data-k="need" data-t="colTerr"></th><th data-k="nadv" data-t="colAdv"></th>
             <th data-k="rank" data-t="colReward"></th>
@@ -214,6 +221,12 @@ const UI = {
     sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
       "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
       "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
+    fixedBtn: n => `Нельзя сформировать · ${n}`, colRank: "Ранг", colCul: "Культура", colRel: "Религия", colLocs: "Локаций в 1337",
+    statsX: n => `${n} стран на старте 1337 года без тира — сформировать их нельзя`,
+    sortsX: { "locs:desc": "Больше всего локаций", "name:asc": "Название — А→Я", "rankLevel:desc": "Ранг — по убыванию",
+      "nadv:desc": "Страновых улучшений — больше", "cont:asc": "Континент", "cul:asc": "Культура" },
+    fixedNote: "У этой страны нет тира: её нет в списке формируемых, поэтому сформировать её нельзя — можно только играть за неё с начала.",
+    infoTitle: "На старте 1337 года", capital: "Столица", culture: "Культура", religion: "Религия", locsStart: "Локаций",
     tierChip: (l, n) => `Тир ${l} · ${n}`, startBadge: "есть на старте",
     startNote: "Эта страна существует на старте 1337 года. Сформировать её можно, когда её не станет и ваша страна подойдёт под условия (культуру и столицу можно сменить).", locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
     special: "особые эффекты", variant: "вариант",
@@ -244,6 +257,12 @@ const UI = {
     sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
       "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
       "cont:asc": "Continent", "nadv:desc": "Most country advances" },
+    fixedBtn: n => `Can't be formed · ${n}`, colRank: "Rank", colCul: "Culture", colRel: "Religion", colLocs: "Locations in 1337",
+    statsX: n => `${n} nations at the 1337 start with no tier; they can't be formed`,
+    sortsX: { "locs:desc": "Most locations", "name:asc": "Name, A to Z", "rankLevel:desc": "Rank, high to low",
+      "nadv:desc": "Most country advances", "cont:asc": "Continent", "cul:asc": "Culture" },
+    fixedNote: "This nation has no tier: it isn't in the formable list, so it can't be formed. You can only play it from the start.",
+    infoTitle: "At the 1337 start", capital: "Capital", culture: "Culture", religion: "Religion", locsStart: "Locations",
     tierChip: (l, n) => `Tier ${l} · ${n}`, startBadge: "exists at start",
     startNote: "This nation exists at the 1337 start. You can form it once it no longer exists and your nation meets the conditions (culture and capital can be changed).", locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
     special: "special effects", variant: "variant",
@@ -279,7 +298,7 @@ if (!LANGS[lang]) {
 const u = () => UI[lang] || UI.english;
 let DATA = null, items = [];
 const cache = {};
-const state = { q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
+const state = { mode: "f", sortX: "locs:desc", q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
   fAdv: false, fNoEvent: false, sort: "level:desc", sel: null };
 
 async function loadLang(l) {
@@ -301,7 +320,12 @@ function prepare() {
       ...it.adv.map(a => a.n)].join(" ").toLowerCase();
     it.rankLevel = Math.max(0, ...it.ranks.map(r => DATA.ranks[r]?.level || 0));
   }
+  for (const it of DATA.fixed || []) it.hay = [it.name, it.tag, it.cul, it.rel, it.cap, it.cont, it.rank, ...it.adv.map(a => a.n)].join(" ").toLowerCase();
 }
+const fixedMode = () => state.mode === "x";
+const curList = () => fixedMode() ? (DATA.fixed || []) : items;
+const sortKey = () => fixedMode() ? state.sortX : state.sort;
+function setSort(v) { if (fixedMode()) state.sortX = v; else state.sort = v; }
 
 function chips(el, values, label, set) {
   el.innerHTML = values.map(v => `<button type="button" class="chip" aria-pressed="${set.has(v)}" data-v="${esc(v)}">${esc(label(v))}</button>`).join("");
@@ -316,29 +340,33 @@ function paintChrome() {
   $("#theme").textContent = t.theme;
   document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t[el.dataset.t]; });
   $("#q").placeholder = t.searchPh;
-  $("#sort").innerHTML = Object.entries(t.sorts).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
-  $("#sort").value = state.sort;
+  $("#sort").innerHTML = Object.entries(fixedMode() ? t.sortsX : t.sorts).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#sort").value = sortKey();
+  document.body.classList.toggle("fixed-mode", fixedMode());
+  $("#headF").hidden = fixedMode(); $("#headX").hidden = !fixedMode();
   $("#helpTitle").textContent = t.helpTitle;
   $("#helpBody").innerHTML = t.help;
   if (!DATA) return;
   const levels = [...new Set(items.map(i => i.level))].sort();
   chips($("#tiers"), levels, l => t.tierChip(l, items.filter(i => i.level === l).length), state.tiers);
   chips($("#rules"), Object.keys(t.rules), r => t.rules[r], state.rules);
-  const conts = [...new Set(items.map(i => i.cont))].sort((a, b) => a.localeCompare(b));
+  $("#fixedBtn").textContent = t.fixedBtn((DATA.fixed || []).length);
+  $("#fixedBtn").setAttribute("aria-pressed", String(fixedMode()));
+  const conts = [...new Set(curList().map(i => i.cont))].sort((a, b) => a.localeCompare(b));
   if (!conts.includes(state.cont)) state.cont = "";
   $("#cont").innerHTML = `<option value="">${esc(t.all)}</option>` + conts.map(c => `<option${c === state.cont ? " selected" : ""}>${esc(c)}</option>`).join("");
-  $("#stats").textContent = t.stats(items.length, levels.join(", "), DATA.version);
+  $("#stats").textContent = fixedMode() ? t.statsX((DATA.fixed || []).length) : t.stats(items.length, levels.join(", "), DATA.version);
   $("#ranks").innerHTML = Object.values(DATA.ranks).sort((a, b) => b.level - a.level)
     .map(r => `<div class="card"><h3>${esc(r.name)}</h3><ul>${r.mods.map(m => `<li>${esc(m)}</li>`).join("") || `<li>${esc(t.noBonus)}</li>`}</ul></div>`).join("");
 }
 
 function filtered() {
   const q = state.q.trim().toLowerCase();
-  const out = items.filter(i =>
+  const out = fixedMode() ? curList().filter(i => (!q || i.hay.includes(q)) && (!state.cont || i.cont === state.cont) && (!state.fAdv || i.nadv)) : items.filter(i =>
     (!q || i.hay.includes(q)) && (!state.tiers.size || state.tiers.has(i.level)) && (!state.rules.size || state.rules.has(i.rule)) &&
     (!state.cont || i.cont === state.cont) && (!state.fRank || i.ranks.length) && (!state.fEff || i.eff.length) &&
     (!state.fCap || !i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv));
-  const [k, dir] = state.sort.split(":");
+  const [k, dir] = sortKey().split(":");
   const m = dir === "desc" ? -1 : 1;
   const key = i => k === "rank" ? i.rankLevel : i[k];
   return out.sort((a, b) => {
@@ -360,10 +388,17 @@ function render() {
   if (!DATA) return;
   const t = u();
   const list = filtered();
-  $("#count").textContent = t.shown(list.length, items.length);
+  $("#count").textContent = t.shown(list.length, curList().length);
   $("#empty").textContent = t.empty;
   $("#empty").hidden = list.length > 0;
-  $("#rows").innerHTML = list.map(i => `
+  if (fixedMode()) {
+    $("#rows").innerHTML = list.map(i => `
+    <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
+      <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.tag)}</div></div></div></td>
+      <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${esc(i.cul)}</td><td>${esc(i.rel)}</td><td>${esc(i.cont)}</td>
+      <td class="num">${i.locs}</td><td class="num">${i.nadv || `<span class="muted">—</span>`}</td>
+    </tr>`).join("");
+  } else $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div>
         <div class="tag">${esc(i.tag)}${i.start ? `<span class="variant">${esc(t.startBadge)}</span>` : ""}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
@@ -374,7 +409,7 @@ function render() {
       <td class="num">${i.nadv || `<span class="muted">—</span>`}</td>
       <td>${i.ranks.length ? `<span class="gilt">↑ ${i.ranks.map(r => esc(DATA.ranks[r]?.name || r)).join(" / ")}</span>` : i.eff.length ? `<span class="muted small">${esc(t.special)}</span>` : ""}</td>
     </tr>`).join("");
-  const [k, dir] = state.sort.split(":");
+  const [k, dir] = sortKey().split(":");
   document.querySelectorAll("th").forEach(th => th.setAttribute("aria-sort", th.dataset.k === k ? (dir === "asc" ? "ascending" : "descending") : "none"));
 }
 
@@ -401,9 +436,30 @@ function advances(i) {
         ${a.d ? `<div class="ad" hidden>${esc(a.d)}</div>` : ""}</div>`).join("")).join("") + `</div>`;
 }
 
+function openFixed(i, push) {
+  const t = u(), d = $("#drawer");
+  const row = (k, v) => v ? `<div><span class="muted">${esc(k)}:</span> ${esc(v)}</div>` : "";
+  d.innerHTML = `
+    <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
+      <span class="tag">${esc(i.tag)}</span>${i.rank ? `<span class="rule">${esc(i.rank)}</span>` : ""}
+      <button class="close" type="button" id="close">${esc(t.close)}</button></div>
+    <p class="gilt" style="white-space:normal">${esc(t.fixedNote)}</p>
+    <div class="cards">
+      ${advances(i)}
+      <div class="card"><h3>${esc(t.infoTitle)}</h3>${row(t.capital, i.cap)}${row(t.culture, i.cul)}${row(t.religion, i.rel)}${row(t.continent, i.cont)}${row(t.locsStart, String(i.locs))}</div>
+    </div>`;
+  d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
+  $("#close").onclick = closeDetail;
+  if (push) history.replaceState(null, "", "#" + i.id);
+  render();
+  $("#close").focus({ preventScroll: true });
+}
+
 function openDetail(id, push = true) {
   const t = u();
   const i = items.find(x => x.id === id), d = $("#drawer");
+  const fx = !i && (DATA.fixed || []).find(x => x.id === id);
+  if (fx) { state.sel = id; if (!fixedMode()) { state.mode = "x"; paintChrome(); } openFixed(fx, push); return; }
   if (!i) { closeDetail(); return; }
   state.sel = id;
   const pct = Math.round(i.frac * 100);
@@ -467,14 +523,19 @@ $("#rows").addEventListener("click", e => { const tr = e.target.closest("tr"); i
 $("#rows").addEventListener("keydown", e => { if (e.key === "Enter") { const tr = e.target.closest("tr"); if (tr) openDetail(tr.dataset.id); } });
 $("#q").addEventListener("input", e => { state.q = e.target.value; render(); });
 $("#cont").addEventListener("change", e => { state.cont = e.target.value; render(); });
-$("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
+$("#sort").addEventListener("change", e => { setSort(e.target.value); render(); });
+$("#fixedBtn").addEventListener("click", () => {
+  state.mode = fixedMode() ? "f" : "x"; state.cont = ""; $("#cont").value = "";
+  if (state.sel) closeDetail();
+  paintChrome(); render();
+});
 const FLAGS = ["fRank", "fEff", "fCap", "fAllow", "fAdv", "fNoEvent"];
 for (const f of FLAGS) $("#" + f).addEventListener("change", e => { state[f] = e.target.checked; render(); });
 document.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
-  const k = th.dataset.k, [ck, cd] = state.sort.split(":");
-  const desc = ["level", "rank", "nadv"].includes(k);
-  state.sort = `${k}:${ck === k ? (cd === "asc" ? "desc" : "asc") : (desc ? "desc" : "asc")}`;
-  $("#sort").value = state.sort;
+  const k = th.dataset.k, [ck, cd] = sortKey().split(":");
+  const desc = ["level", "rank", "nadv", "rankLevel", "locs"].includes(k);
+  setSort(`${k}:${ck === k ? (cd === "asc" ? "desc" : "asc") : (desc ? "desc" : "asc")}`);
+  $("#sort").value = sortKey();
   render();
 }));
 $("#reset").addEventListener("click", () => {
