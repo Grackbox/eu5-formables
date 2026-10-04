@@ -57,7 +57,7 @@ EN = {
     "Ситуация не завершилась": "Situation has not ended", "Активна ситуация: {}": "Situation is active: {}",
     "Сила сословия «{}» {} {}": "{} estate power {} {}", "Есть правитель": "Has a ruler", "Нет правителя": "Has no ruler",
     "Субъект страны {}": "Subject of {}", "В унии со страной {}": "In a union with {}",
-    "Изначально страна {}": "Originally the country {}",
+    "Только если начали за {}": "Only if you started as {}",
     "Есть переменная «{}» (событие/решение)": "Has variable “{}” (event/decision)", "Год {} {}": "Year {} {}",
     "Существует: {}": "Exists: {}", "Регион: {}": "Region: {}",
     "НЕ ": "NOT ", "да": "yes", "нет": "no",
@@ -362,7 +362,7 @@ def trig(k, op, v):
     if k == "has_or_had_tag":
         return node(T("Является или была страной {}", f"{L(v, v)} ({v})"))
     if k == "original_tag" and isinstance(v, str):
-        return node(pre + T("Изначально страна {}", f"{L(v, v)} ({v})"))
+        return node(pre + T("Только если начали за {}", f"{L(v, v)} ({v})"), None, "orig")
     if k == "current_age_or_later":
         return node(T("Эпоха не раньше: {}", ref(get(v, "age") if isinstance(v, list) else v)))
     if k in YESNO:
@@ -504,8 +504,8 @@ def build_lang(lang):
                     unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
                 elif kk in mod_types:
                     bonuses.append(mod_line(kk, vv))
-            # original_tag = <this nation> only restates the tag gate, so it is dropped
-            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (a == "original_tag" and c == tag) and not (
+            # original_tag stays visible: such advances need you to have started as that nation, forming it is not enough
+            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (
                 a == "OR" and isinstance(c, list) and all(TAG_RE.match(x or "") for x, _, _ in c))]
             out.append({"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
                         "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
