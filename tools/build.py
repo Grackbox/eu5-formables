@@ -691,9 +691,9 @@ def trig(k, op, v):
     if k == "current_year":
         return node(T("Год {} {}", op, v))
     if k == "region" and isinstance(v, str):
-        return node(T("Регион: {}", ref(v)))
+        return dict(node(T("Регион: {}", ref(v))), g=v)
     if k in SIMPLE and isinstance(v, str):
-        return node(pre + T(SIMPLE[k], ref(v)))
+        return dict(node(pre + T(SIMPLE[k], ref(v))), g=v)  # g: the game reference, e.g. location:vienna (used by the mod)
     if isinstance(v, list):
         return node(f"{ref(k) if ':' in k else k}:", trig_list(v), "group")
     rhs = T("да") if v == "yes" else T("нет") if v == "no" else ref(v)
@@ -785,7 +785,7 @@ def unlock_entry(kind, key):
         unit = get(levy_defs.get(key, []), "unit")
         name = L(unit, "") if unit else ""
         name = name or L(key.removeprefix("levy_"), "") or key.removeprefix("levy_").replace("_", " ").capitalize()
-    e = {"t": f"{T(UNLOCKS[kind])}: {name or key}"}
+    e = {"t": f"{T(UNLOCKS[kind])}: {name or key}", "kind": kind, "k": key}
     if kind == "unlock_town_rights" and key in town_right_defs:
         v = town_right_defs[key]
         e["loc"] = _mods(get(v, "location_modifier"))
