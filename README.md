@@ -22,7 +22,7 @@ The script writes `tools/site/pages.html` and `tools/site/data/<language>.json`.
 ## Notes
 
 - This is a fan-made tool and is not affiliated with Paradox Interactive. Game names, text and data belong to Paradox Interactive.
-- Location counts exclude seas, lakes and impassable land, so they can differ slightly from the in-game numbers.
+- Location counts leave out seas, lakes and impassable mountains, as the game does.
 - The connecting phrases in conditions (for example "Owns location:") are in Russian for the Russian page and in English for the other languages.
 
 Built with Claude (Anthropic).

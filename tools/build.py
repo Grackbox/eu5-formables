@@ -117,7 +117,9 @@ def P(path):
 defs = P(G + "in_game/map_data/definitions.txt")
 dmap = P(G + "in_game/map_data/default.map")
 excluded = set()
-for key in ("sea_zones", "lakes", "impassable_mountains", "non_ownable"):
+# The game counts non_ownable land in a formable's total (Egypt: 82 + 19 = 101, 75% = 76), so only water and
+# impassable mountains are left out.
+for key in ("sea_zones", "lakes", "impassable_mountains"):
     for blk in get_all(dmap, key):
         excluded |= {v for k, _, v in blk if k is None and isinstance(v, str)}
 
