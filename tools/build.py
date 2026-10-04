@@ -128,13 +128,15 @@ members, level_of = {}, {}
 LEVELS = ["continent", "sub_continent", "region", "area", "province"]
 
 
-geo_parent, geo_children = {}, {}
+geo_parent, geo_children, loc_parent = {}, {}, {}
 
 
 def walk(block, depth, parent=None):
     acc = set()
     for k, _, v in block:
         if k is None:
+            if isinstance(v, str):
+                loc_parent[v] = parent
             if isinstance(v, str) and v not in excluded:
                 acc.add(v)
             continue
@@ -803,6 +805,7 @@ def build_lang(lang):
             "own": get(b, "potential_requires_own", "yes") != "no",
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
             "terr": terr, "total": len(req), "need": math.ceil(len(req) * frac) if req else 0,
+            "contk": cont[0][0] if cont else "",
             "cont": L(cont[0][0], cont[0][0]) if cont else (T("Только событием") if by_event else "—"),
             "pot": trig_list(pot_raw), "allow": trig_list(get(b, "allow") or []), "eff": effect,
             "ranks": sorted(set(re.findall(r'"k": "rank:(\w+)"', json.dumps(effect, ensure_ascii=False)))),
@@ -826,7 +829,8 @@ def build_lang(lang):
         fixed.append({
             "id": tag, "tag": tag, "name": L(tag, tag), "rank": L(rank, "") if rank else "", "rankLevel": rank_level.get(rank, 0),
             "cul": adj(d["culture"]) if d.get("culture") else "", "rel": L(d["religion"], "") if d.get("religion") else "",
-            "cap": L(cap, cap) if cap else "", "cont": L(cont, cont) if cont else "—", "locs": len(locs),
+            "cap": L(cap, cap) if cap else "", "capk": loc_parent.get(cap) or "", "contk": cont or "",
+            "cont": L(cont, cont) if cont else "—", "locs": len(locs),
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
             "adv": adv, "nadv": len(adv), "ref": reforms(tag), "ck": d.get("culture"),
         })

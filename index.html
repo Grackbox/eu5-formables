@@ -236,7 +236,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "18b1385f72"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "56834dd8ad"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -526,7 +526,7 @@ function render() {
     $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div><div class="tag">${esc(i.tag)}${i.twin ? `<span class="variant">${esc(t.twinBadge(i.twin.tag))}</span>` : ""}</div></div></div></td>
-      <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${esc(i.cul)}</td><td>${esc(i.rel)}</td><td>${esc(i.cont)}</td>
+      <td>${esc(i.rank) || `<span class="muted">—</span>`}</td><td>${i.ck && DATA.culByKey[i.ck] ? `<button type="button" class="cellbtn" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button>` : esc(i.cul)}</td><td>${esc(i.rel)}</td><td>${contCell(i)}</td>
       <td class="num">${i.locs}</td><td class="num">${i.nadv || `<span class="muted">—</span>`}${i.ref && i.ref.length ? `<span class="muted small"> +${i.ref.length} ${esc(t.refShort)}</span>` : ""}</td>
     </tr>`).join("");
   } else $("#rows").innerHTML = list.map(i => `
@@ -535,7 +535,7 @@ function render() {
         <div class="tag">${esc(i.tag)}${i.start ? `<span class="variant">${esc(t.startBadge)}</span>` : ""}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
       <td><span class="tier t${i.level}">${i.level}</span></td>
       <td><span class="rule">${esc(t.rules[i.rule] || i.rule)}</span></td>
-      <td>${esc(i.cont)}</td>
+      <td>${contCell(i)}</td>
       <td>${terrSummary(i)}</td>
       <td class="num">${i.nadv || `<span class="muted">—</span>`}${i.ref && i.ref.length ? `<span class="muted small"> +${i.ref.length} ${esc(t.refShort)}</span>` : ""}</td>
       <td>${i.ranks.length ? `<span class="gilt">↑ ${i.ranks.map(r => esc(DATA.ranks[r]?.name || r)).join(" / ")}</span>` : i.eff.length ? `<span class="muted small">${esc(t.special)}</span>` : ""}</td>
@@ -676,6 +676,17 @@ function advances(i, title, note) {
         ${a.d ? `<div class="ad" hidden>${esc(a.d)}</div>` : ""}</div>`).join("")).join("") + `</div>`;
 }
 
+function geoRow(label, text, key) {
+  if (!text) return "";
+  if (!key || !DATA.geo || !DATA.geo[key]) return `<div><span class="muted">${esc(label)}:</span> ${esc(text)}</div>`;
+  const g = DATA.geo[key], t = u();
+  const extra = g.n !== text ? `<b>${esc((t.geoLv[g.lv] || "").toLowerCase())} ${esc(g.n)}</b>` : "";
+  return `<div><span class="muted">${esc(label)}:</span> <button type="button" class="linkchip" data-open="geo.${esc(key)}">${esc(text)}${extra}</button></div>`;
+}
+function contCell(i) {
+  return i.contk && DATA.geo && DATA.geo[i.contk] ? `<button type="button" class="cellbtn" data-open="geo.${esc(i.contk)}">${esc(i.cont)}</button>` : esc(i.cont);
+}
+
 function openFixed(i, push) {
   const t = u(), d = $("#drawer");
   const row = (k, v) => v ? `<div><span class="muted">${esc(k)}:</span> ${esc(v)}</div>` : "";
@@ -688,7 +699,7 @@ function openFixed(i, push) {
     <div class="cards">
       ${advances(i)}
       ${principles(i)}
-      <div class="card"><h3>${esc(t.infoTitle)}</h3>${row(t.capital, i.cap)}${i.ck && DATA.culByKey[i.ck] ? `<div><span class="muted">${esc(t.culture)}:</span> <button type="button" class="linkchip" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button></div>` : row(t.culture, i.cul)}${row(t.religion, i.rel)}${row(t.continent, i.cont)}${row(t.locsStart, String(i.locs))}</div>
+      <div class="card"><h3>${esc(t.infoTitle)}</h3>${geoRow(t.capital, i.cap, i.capk)}${i.ck && DATA.culByKey[i.ck] ? `<div><span class="muted">${esc(t.culture)}:</span> <button type="button" class="linkchip" data-open="cul.${esc(i.ck)}">${esc(i.cul)}</button></div>` : row(t.culture, i.cul)}${row(t.religion, i.rel)}${geoRow(t.continent, i.cont, i.contk)}${row(t.locsStart, String(i.locs))}</div>
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
   $("#close").onclick = closeDetail;
