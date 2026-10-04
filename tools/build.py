@@ -6,6 +6,7 @@ Outputs:
 """
 import colorsys
 import glob
+import hashlib
 import json
 import math
 import os
@@ -544,6 +545,8 @@ def main():
             json.dump(d, fh, ensure_ascii=False, separators=(",", ":"))
         print(f"{lang:13} {len(d['items'])} formables, {os.path.getsize(p) // 1024} KB")
     tpl = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
+    rev = hashlib.sha1(json.dumps(all_data, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()[:10]
+    tpl = tpl.replace("__REV__", rev)
     with open(os.path.join(HERE, "site", "index.html"), "w", encoding="utf-8") as fh:
         fh.write(tpl.replace("/*__EMBED__*/null", "null"))
     standalone = full_page(tpl.replace("/*__EMBED__*/null", json.dumps(all_data, ensure_ascii=False, separators=(",", ":"))))

@@ -202,6 +202,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
+const DATA_REV = "e263424c3d"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -289,7 +290,7 @@ const state = { q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: fals
 async function loadLang(l) {
   if (EMBED && EMBED[l]) return EMBED[l];
   if (cache[l]) return cache[l];
-  const r = await fetch(`data/${l}.json`);
+  const r = await fetch(`data/${l}.json?v=${DATA_REV}`);
   if (!r.ok) throw new Error(r.status);
   return (cache[l] = await r.json());
 }
