@@ -218,126 +218,10 @@ for f in glob.glob(G + "in_game/common/advances/*.txt"):
             for tg in tags_in(get(v, "potential") or []):
                 adv_src.setdefault(tg, []).append((k, v))
 
-# Tags that already exist (own locations) at the 1337 start; they can't be formed while they exist.
+# Tags that already exist (own locations) at the 1337 start; they can be formed only once the original is gone.
 _setup = get(get(P(G + "main_menu/setup/1337/10_countries.txt"), "countries") or [], "countries") or []
 start_tags = {k for k, _, v in _setup if k and isinstance(v, list) and
               any(kk and kk.startswith("own") and isinstance(vv, list) and vv for kk, _, vv in v)}
-
-# Start culture/religion of every country, plus culture groups, languages and religion groups,
-# so a formable's `potential` can be checked against the countries that exist in 1337.
-start_country = {}
-for f in glob.glob(G + "in_game/setup/countries/*.txt"):
-    for k, _, v in P(f):
-        if k in start_tags and isinstance(v, list):
-            start_country[k] = {"culture": get(v, "culture_definition"), "religion": get(v, "religion_definition")}
-culture_info = {}
-for f in glob.glob(G + "in_game/common/cultures/*.txt"):
-    for k, _, v in P(f):
-        if k and isinstance(v, list):
-            groups = get(v, "culture_groups") or []
-            culture_info[k] = {"groups": {x for _, _, x in groups if isinstance(x, str)}, "dialect": get(v, "language")}
-dialect_lang = {}
-
-
-def _dialects(block, lang):
-    for k, _, v in block:
-        if k and isinstance(v, list):
-            if k.endswith("_dialect"):
-                dialect_lang[k] = lang
-            _dialects(v, lang)
-
-
-for f in glob.glob(G + "in_game/common/languages/*.txt"):
-    for k, _, v in P(f):
-        if k and isinstance(v, list):
-            dialect_lang[k] = k
-            _dialects(v, k)
-religion_group = {}
-for f in glob.glob(G + "in_game/common/religions/*.txt"):
-    for k, _, v in P(f):
-        if k and isinstance(v, list) and get(v, "group"):
-            religion_group[k] = get(v, "group")
-
-
-def _and(vals):
-    vals = list(vals)
-    return False if False in vals else (True if all(x is True for x in vals) else None)
-
-
-def _or(vals):
-    vals = list(vals)
-    return True if True in vals else (False if all(x is False for x in vals) else None)
-
-
-def _not(x):
-    return None if x is None else not x
-
-
-def _strip(v, prefix):
-    return v.split(":", 1)[1] if isinstance(v, str) and v.startswith(prefix + ":") else v
-
-
-def culture_test(block, cul):
-    """Evaluate a culture-scope block for one culture: True / False / None (can't tell)."""
-    info = culture_info.get(cul, {"groups": set(), "dialect": None})
-    out = []
-    for k, op, v in block:
-        neg = op == "!="
-        if k == "has_culture_group":
-            r = _strip(v, "culture_group") in info["groups"]
-        elif k == "language":
-            r = dialect_lang.get(info["dialect"]) == _strip(v, "language")
-        elif k == "this":
-            r = _strip(v, "culture") == cul
-        elif k in ("OR", "AND", "NOT", "NOR") and isinstance(v, list):
-            sub = [culture_test([x], cul) for x in v]
-            r = {"OR": _or, "AND": _and}.get(k, lambda s: _not(_or(s)))(sub)
-        else:
-            r = None
-        out.append(_not(r) if neg else r)
-    return _and(out)
-
-
-def potential_test(block, tag):
-    """Can start country `tag` pass this trigger block? True / False / None (can't tell)."""
-    c = start_country.get(tag, {})
-    cul, rel = c.get("culture"), c.get("religion")
-    out = []
-    for k, op, v in block:
-        neg = op == "!="
-        k = k.strip('"') if k else k
-        if k == "always":
-            r = v == "yes"
-        elif k in ("tag", "has_or_had_tag"):
-            r = v == tag
-        elif k == "this" and isinstance(v, str) and v.startswith("c:"):
-            r = v[2:] == tag
-        elif k == "culture" and isinstance(v, str):
-            r = _strip(v, "culture") == cul
-        elif k == "culture" and isinstance(v, list):
-            r = culture_test(v, cul)
-        elif k == "culture.language":
-            r = dialect_lang.get(culture_info.get(cul, {}).get("dialect")) == _strip(v, "language")
-        elif k == "religion" and isinstance(v, str):
-            r = _strip(v, "religion") == rel
-        elif k == "religion.group":
-            r = religion_group.get(rel) == _strip(v, "religion_group")
-        elif k == "any_primary_or_accepted_or_tolerated_culture" and isinstance(v, list):
-            r = True if culture_test(v, cul) else None  # accepted/tolerated cultures are unknown here
-        elif k in ("OR", "AND", "NOT", "NOR") and isinstance(v, list):
-            sub = [potential_test([x], tag) for x in v]
-            r = {"OR": _or, "AND": _and}.get(k, lambda s: _not(_or(s)))(sub)
-        else:
-            r = None
-        out.append(_not(r) if neg else r)
-    return _and(out)
-
-
-def formable_by_others(b, tag):
-    """False only when we are sure no other 1337 country can see this formable."""
-    pot = get(b, "potential") or []
-    return any(potential_test(pot, other) is not False for other in start_country if other != tag)
-
 
 formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
              if fid and isinstance(b, list)]
@@ -642,8 +526,7 @@ def build_lang(lang):
             "cont": L(cont[0][0], cont[0][0]) if cont else (T("Только событием") if by_event else "—"),
             "pot": trig_list(pot_raw), "allow": trig_list(get(b, "allow") or []), "eff": effect,
             "ranks": sorted(set(re.findall(r'"k": "rank:(\w+)"', json.dumps(effect, ensure_ascii=False)))),
-            "event": by_event, "start": tag in start_tags,
-            "blocked": tag in start_tags and not formable_by_others(b, tag), "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
+            "event": by_event, "start": tag in start_tags, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
         })
     items.sort(key=lambda x: (-x["level"], x["name"]))
     return {"lang": lang, "items": items, "ranks": ranks, "version": VERSION}
