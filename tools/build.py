@@ -56,6 +56,7 @@ EN = {
     "Ситуация не завершилась": "Situation has not ended", "Активна ситуация: {}": "Situation is active: {}",
     "Сила сословия «{}» {} {}": "{} estate power {} {}", "Есть правитель": "Has a ruler", "Нет правителя": "Has no ruler",
     "Субъект страны {}": "Subject of {}", "В унии со страной {}": "In a union with {}",
+    "Изначально страна {}": "Originally the country {}",
     "Есть переменная «{}» (событие/решение)": "Has variable “{}” (event/decision)", "Год {} {}": "Year {} {}",
     "Существует: {}": "Exists: {}", "Регион: {}": "Region: {}",
     "НЕ ": "NOT ", "да": "yes", "нет": "no",
@@ -336,6 +337,8 @@ def trig(k, op, v):
         return node(T("Существует страна {}", ref(v)) if v != "no" else T("Страна не существует"))
     if k == "has_or_had_tag":
         return node(T("Является или была страной {}", f"{L(v, v)} ({v})"))
+    if k == "original_tag" and isinstance(v, str):
+        return node(pre + T("Изначально страна {}", f"{L(v, v)} ({v})"))
     if k == "current_age_or_later":
         return node(T("Эпоха не раньше: {}", ref(get(v, "age") if isinstance(v, list) else v)))
     if k in YESNO:
@@ -477,7 +480,8 @@ def build_lang(lang):
                     unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
                 elif kk in mod_types:
                     bonuses.append(mod_line(kk, vv))
-            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (
+            # original_tag = <this nation> only restates the tag gate, so it is dropped
+            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (a == "original_tag" and c == tag) and not (
                 a == "OR" and isinstance(c, list) and all(TAG_RE.match(x or "") for x, _, _ in c))]
             out.append({"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
                         "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
@@ -509,7 +513,7 @@ def build_lang(lang):
         items.append({
             "id": fid, "tag": tag, "name": L(get(b, "name", tag), tag),
             "level": int(get(b, "level", "1")), "rule": get(b, "rule", "historical"),
-            "frac": frac, "cap": get(b, "capital_required") == "yes",
+            "frac": frac, "cap": get(b, "capital_required", "yes") != "no",  # 1.4 default: capital must be inside
             "own": get(b, "potential_requires_own", "yes") != "no",
             "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
             "terr": terr, "total": len(req), "need": math.ceil(len(req) * frac) if req else 0,
