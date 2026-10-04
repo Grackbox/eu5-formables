@@ -265,6 +265,11 @@ for f in glob.glob(G + "in_game/common/town_rights/*.txt"):
     for k, _, v in P(f):
         if k and isinstance(v, list):
             town_right_defs[k] = v
+levy_defs = {}
+for f in glob.glob(G + "in_game/common/levies/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            levy_defs[k] = v
 reform_defs = {}
 for f in glob.glob(G + "in_game/common/government_reforms/*.txt"):
     for k, _, v in P(f):
@@ -502,7 +507,8 @@ for f in glob.glob(G + "in_game/common/advances/*.txt"):
         if not (k and isinstance(v, list)):
             continue
         pot = get(v, "potential") or []
-        if not _mentions_religion(pot):
+        # only advances granted by religion itself; culture or nation advances that merely need a religion stay with them
+        if not _mentions_religion(pot) or _mentions_culture(pot) or tags_in(pot) or "has_or_had_tag" in repr(pot):
             continue
         hit = [r for r in all_religions if rel_eval(pot, r) is True]
         if hit and len(hit) <= len(all_religions) // 2:
@@ -673,7 +679,10 @@ def trig(k, op, v):
     if k == "is_member_of_international_organization_of_type":
         return node(pre + T("Член организации типа: {}", ref(get(v, "type") if isinstance(v, list) else v)))
     if k == "has_dlc":
-        return node(T("Есть DLC «{}»", L(v, v)))
+        small = {"of", "the", "and", "in", "on", "to", "a"}
+        words = re.sub(r"^d\d+_", "", v).split("_")
+        pretty = " ".join(w if (i and w in small) else w.capitalize() for i, w in enumerate(words))
+        return node(T("Есть DLC «{}»", L(v, "") or pretty))
     if k.startswith("estate_power("):
         est = re.search(r"estate_type:(\w+)", k)
         return node(T("Сила сословия «{}» {} {}", L(est.group(1)) if est else k, op, v))
@@ -771,7 +780,12 @@ def _mods(block):
 
 def unlock_entry(kind, key):
     """{"t": "Town right: X", "m": [modifier lines], "loc": [local modifier lines]} for an unlock."""
-    e = {"t": f"{T(UNLOCKS[kind])}: {L(key, key)}"}
+    name = L(key, "")
+    if not name and kind == "unlock_levy":
+        unit = get(levy_defs.get(key, []), "unit")
+        name = L(unit, "") if unit else ""
+        name = name or L(key.removeprefix("levy_"), "") or key.removeprefix("levy_").replace("_", " ").capitalize()
+    e = {"t": f"{T(UNLOCKS[kind])}: {name or key}"}
     if kind == "unlock_town_rights" and key in town_right_defs:
         v = town_right_defs[key]
         e["loc"] = _mods(get(v, "location_modifier"))
@@ -835,7 +849,8 @@ def build_lang(lang):
                 elif kk in mod_types:
                     bonuses.append(mod_line(kk, vv))
             # original_tag stays visible: such advances need you to have started as that nation, forming it is not enough
-            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (
+            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a))
+                     and not (a == "OR" and isinstance(c, list) and any(x and TAG_RE.match(x) and y == tag for x, _, y in c)) and not (
                 a == "OR" and isinstance(c, list) and all(TAG_RE.match(x or "") for x, _, _ in c))]
             out.append({"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
                         "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
