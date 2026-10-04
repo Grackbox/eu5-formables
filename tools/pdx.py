@@ -102,6 +102,13 @@ def clean(s, loc, depth=0):
     # [GetCountry('MLL').GetAdjective] / .GetName... / .GetLongName...
     s = re.sub(r"\[GetCountry\('(\w+)'\)\.(GetAdjective|Get\w*Name\w*)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "GetAdjective" else ""), m.group(1)), loc, depth + 1), s)
+    # [GetUniqueInternationalOrganization('x').GetName], [GetReligion('x').GetAdjective], ... -> localized key
+    s = re.sub(r"\[Get\w+\('(\w+)'\)\.Get(Name|Adjective|LongName)\w*\|?\w*\]",
+               lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "Adjective" and m.group(1) + "_ADJ" in loc else ""),
+                                       m.group(1).replace("_", " ")), loc, depth + 1), s)
+    # [capital|e] -> the game concept's name
+    s = re.sub(r"\[(\w+)\|[eE]\w*\]",
+               lambda m: clean(loc.get("game_concept_" + m.group(1)) or loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
     s = re.sub(r"#ONCLICK:\S*\s?", "", s)
     s = re.sub(r"#TOOLTIP:[^,]*,[^,]*,X\s?", "", s)
     s = re.sub(r'#[A-Za-z_]+(?:;[A-Za-z_]+)* ?', '', s)
