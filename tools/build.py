@@ -1,0 +1,555 @@
+"""Builds the EU5 formable countries overview.
+
+Outputs:
+  formables.html          standalone page with every language embedded (open locally)
+  site/index.html         page for publishing, loads site/data/<lang>.json on demand
+"""
+import colorsys
+import glob
+import json
+import math
+import os
+import re
+import sys
+from collections import Counter
+
+sys.path.insert(0, os.path.dirname(__file__))
+from pdx import parse, get, get_all, load_loc, clean
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Path to the game's "game" folder; override with the EU5_GAME environment variable.
+G = os.environ.get("EU5_GAME", "E:/SteamLibrary/steamapps/common/Europa Universalis V/game").rstrip("/\\") + "/"
+LANGS = ["english", "russian", "german", "french", "spanish", "braz_por", "polish", "turkish",
+         "japanese", "korean", "simp_chinese"]
+VERSION = "1.4"
+
+# ================================================================ phrases
+# Only the connecting phrases are ours; every game term comes from the game's localization.
+# Russian is used for the Russian build, English for every other language.
+EN = {
+    "Любое из:": "Any of:", "Все из:": "All of:", "НЕ выполнено:": "Not:", "Ни одно из:": "None of:",
+    "Если": "If", "Иначе, если": "Else if", "условие:": "condition:", "то требуется:": "then requires:",
+    "то:": "then:", "Иначе требуется:": "Otherwise requires:", "Иначе:": "Otherwise:", "Условие:": "Condition:",
+    "Всегда": "Always", "Никогда (недоступно)": "Never (unavailable)",
+    "Основная культура:": "Primary culture:", "Основная культура: {}": "Primary culture: {}",
+    "Группа культур: {}": "Culture group: {}",
+    "Любая основная, принятая или терпимая культура:": "Any primary, accepted or tolerated culture:",
+    "Язык культуры: {}": "Culture language: {}", "Диалект: {}": "Dialect: {}", "Язык двора: {}": "Court language: {}",
+    "Религия: {}": "Religion: {}", "Группа религий: {}": "Religion group: {}", "Группа религий НЕ {}": "Religion group is not {}",
+    "Владеет локацией: {}": "Owns location: {}", "Страна: {}": "Country: {}",
+    "Является страной {}": "Is the country {}", "Не является страной {}": "Is not the country {}",
+    "Существует страна {}": "Country exists: {}", "Страна не существует": "Country does not exist",
+    "Является или была страной {}": "Is or was the country {}", "Текущая эпоха: {}": "Current age: {}",
+    "Эпоха не раньше: {}": "Age is at least: {}", "Есть реформа правления: {}": "Has government reform: {}",
+    "Тип правления: {}": "Government type: {}", "Есть привилегия сословия: {}": "Has estate privilege: {}",
+    "Изучено развитие: {}": "Has advance: {}", "Является субъектом": "Is a subject", "Не является субъектом": "Is not a subject",
+    "Ведёт войну": "Is at war", "Не ведёт войну": "Is not at war", "Идёт гражданская война": "Is in a civil war",
+    "Нет гражданской войны": "Is not in a civil war", "Является гегемоном": "Is a hegemon", "Не является гегемоном": "Is not a hegemon",
+    "Культура коренных американцев": "Native American culture", "Культура не коренных американцев": "Not a Native American culture",
+    "Государство франкократии": "Frankokratia state", "Не государство франкократии": "Not a Frankokratia state",
+    "Ранг страны: {}": "Country rank: {}", "Ранг ниже, чем «{}»": "Rank below {}", "Ранг выше, чем «{}»": "Rank above {}",
+    "Уровень ранга {} {}": "Rank level {} {}", "Столица:": "Capital:", "Столица: {}": "Capital: {}",
+    "Член организации: {}": "Member of organization: {}", "Состоит в организации": "Is in an organization",
+    "Не состоит в организации": "Is not in an organization", "Член организации типа: {}": "Member of organization type: {}",
+    "Лидер организации: {}": "Leader of organization: {}", "Есть DLC «{}»": "Has DLC: {}", "Есть присутствие в: {}": "Has presence in: {}",
+    "Является ядром страны {}": "Is a core of {}", "Ситуация завершилась": "Situation has ended",
+    "Ситуация не завершилась": "Situation has not ended", "Активна ситуация: {}": "Situation is active: {}",
+    "Сила сословия «{}» {} {}": "{} estate power {} {}", "Есть правитель": "Has a ruler", "Нет правителя": "Has no ruler",
+    "Субъект страны {}": "Subject of {}", "В унии со страной {}": "In a union with {}",
+    "Есть переменная «{}» (событие/решение)": "Has variable “{}” (event/decision)", "Год {} {}": "Year {} {}",
+    "Существует: {}": "Exists: {}", "Регион: {}": "Region: {}",
+    "НЕ ": "NOT ", "да": "yes", "нет": "no",
+    "Скрытые эффекты:": "Hidden effects:", "Ранг страны становится: {}": "Country rank becomes: {}",
+    "Открывает реформу правления: {}": "Unlocks government reform: {}", "Добавляет реформу: {}": "Adds reform: {}",
+    "Убирает реформу: {}": "Removes reform: {}", "Меняет тип правления на: {}": "Changes government type to: {}",
+    "Открывает политику: {}": "Unlocks policy: {}", "Открывает повод к войне: {}": "Unlocks casus belli: {}",
+    "Изучает развитие: {}": "Researches advance: {}", "Модификатор «{}»": "Modifier: {}", " на {} лет": " for {} years",
+    "Столица переносится в {}": "Capital moves to {}", "Предлагает перенести столицу в {}": "Offers to move the capital to {}",
+    "Меняет цвет страны на карте": "Changes the map color", "Добавляет ядро: {}": "Adds core: {}",
+    "Переименовывает локацию": "Renames a location", "Событие: {}": "Event: {}", "Событие {}": "Event {}",
+    "Распускает международную организацию {}": "Dissolves the international organization {}",
+    "Выходит из международной организации": "Leaves an international organization",
+    "Меняет уровень интеграции локаций": "Changes the integration level of locations",
+    "Сдвигает общественную ценность: {}": "Shifts societal value: {}",
+    "Только событием": "Event only", "Стабильность": "Stability", "Сила правительства": "Government power",
+    "Легитимность": "Legitimacy", "Престиж": "Prestige",
+    "Отряд": "Unit", "Здание": "Building", "Ополчение": "Levy", "Закон": "Law", "Городское право": "Town right",
+    "Реформа правления": "Government reform", "Действие кабинета": "Cabinet action", "Способ производства": "Production method",
+    "Привилегия сословия": "Estate privilege", "Политика": "Policy", "Тип субъекта": "Subject type",
+    "Рыцарский орден": "Chivalric order", "Наследование": "Heir selection", "Повод к войне": "Casus belli",
+    "Тип дорог": "Road type", "Дипломатия": "Diplomacy", "Способность": "Ability", "Взаимодействие": "Interaction",
+    "Континенты": "Continents", "Субконтиненты": "Subcontinents", "Регионы": "Regions", "Области": "Areas",
+    "Провинции": "Provinces", "Локации": "Locations",
+}
+
+LANG = "russian"
+loc = {}
+loc_en = {}
+
+
+def T(template, *args):
+    tpl = template if LANG == "russian" else EN.get(template, template)
+    return tpl.format(*args) if args else tpl
+
+
+def L(key, fallback=None):
+    v = loc.get(key) or loc_en.get(key)
+    return clean(v, loc) if v else (fallback if fallback is not None else key)
+
+
+def adj(key, lang_word=False):
+    """Russian and Polish store culture/language names as adjective stems ("Шведск", "Szwedz")."""
+    s = L(key).rstrip(".")
+    if LANG == "russian" and re.search(r"[кнгхцвлмрстдпбз]$", s):
+        return s + ("ий" if lang_word else "ая")
+    if LANG == "polish" and re.search(r"(s|z|c|k)$", s) and not s.endswith("ska"):
+        return s + ("ki" if lang_word else "ka")
+    return s
+
+
+# ================================================================ game data (language independent)
+def P(path):
+    return parse(open(path, encoding="utf-8-sig").read())
+
+
+defs = P(G + "in_game/map_data/definitions.txt")
+dmap = P(G + "in_game/map_data/default.map")
+excluded = set()
+for key in ("sea_zones", "lakes", "impassable_mountains", "non_ownable"):
+    for blk in get_all(dmap, key):
+        excluded |= {v for k, _, v in blk if k is None and isinstance(v, str)}
+
+members, level_of = {}, {}
+LEVELS = ["continent", "sub_continent", "region", "area", "province"]
+
+
+def walk(block, depth):
+    acc = set()
+    for k, _, v in block:
+        if k is None:
+            if isinstance(v, str) and v not in excluded:
+                acc.add(v)
+            continue
+        if isinstance(v, list):
+            s = walk(v, depth + 1)
+            members[k] = s
+            level_of[k] = LEVELS[min(depth, 4)]
+            acc |= s
+    return acc
+
+
+walk(defs, 0)
+loc_continent = {l: name for name, lv in level_of.items() if lv == "continent" for l in members[name]}
+
+named_colors = {}
+for f in glob.glob(G + "main_menu/common/named_colors/*.txt"):
+    for _, _, v in P(f):
+        if isinstance(v, list):
+            for k, _, c in v:
+                if k and isinstance(c, tuple):
+                    named_colors[k] = c
+
+
+def to_hex(c):
+    if not isinstance(c, tuple):
+        return None
+    kind, vals = c
+    nums = [float(x) for _, _, x in vals if isinstance(x, str)][:3]
+    if len(nums) < 3:
+        return None
+    if kind == "rgb":
+        r, g, b = [n / 255 if max(nums) > 1 else n for n in nums]
+    elif kind == "hsv360":
+        r, g, b = colorsys.hsv_to_rgb(nums[0] / 360, nums[1] / 100, nums[2] / 100)
+    else:
+        r, g, b = colorsys.hsv_to_rgb(*nums)
+    return "#%02x%02x%02x" % tuple(max(0, min(255, round(x * 255))) for x in (r, g, b))
+
+
+mod_types = {}
+for f in glob.glob(G + "main_menu/common/modifier_type_definitions/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            mod_types[k] = {kk: vv for kk, _, vv in v if isinstance(vv, str)}
+
+static_mods = {}
+for f in glob.glob(G + "main_menu/common/static_modifiers/*.txt") + glob.glob(G + "in_game/common/static_modifiers/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            static_mods[k] = [(kk, vv) for kk, _, vv in v if kk and kk != "game_data" and isinstance(vv, str)]
+
+script_values = {}
+for f in glob.glob(G + "in_game/common/script_values/*.txt") + glob.glob(G + "main_menu/common/script_values/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, str) and re.fullmatch(r"-?\d+(\.\d+)?", v):
+            script_values[k] = float(v)
+
+rank_src = [(k, v) for k, _, v in P(G + "in_game/common/country_ranks/00_default.txt") if k and isinstance(v, list)]
+rank_level = {k: int(get(v, "level", "1")) for k, v in rank_src}
+
+UNLOCKS = {
+    "unlock_unit": "Отряд", "unlock_building": "Здание", "unlock_levy": "Ополчение", "unlock_law": "Закон",
+    "unlock_town_rights": "Городское право", "unlock_government_reform": "Реформа правления",
+    "unlock_cabinet_action": "Действие кабинета", "unlock_production_method": "Способ производства",
+    "unlock_estate_privilege": "Привилегия сословия", "unlock_policy": "Политика", "unlock_subject_type": "Тип субъекта",
+    "unlock_chivalric_order": "Рыцарский орден", "unlock_heir_selection": "Наследование", "unlock_casus_belli": "Повод к войне",
+    "unlock_road_type": "Тип дорог", "unlock_diplomacy": "Дипломатия", "unlock_ability": "Способность",
+    "unlock_interaction": "Взаимодействие", "unlock_country_interaction": "Взаимодействие",
+}
+TAG_RE = re.compile(r"^(has_or_had_tag|tag)$")
+
+
+def tags_in(block):
+    found = set()
+    for k, _, v in block:
+        if k and TAG_RE.match(k) and isinstance(v, str):
+            found.add(v)
+        elif k in ("OR", "AND") and isinstance(v, list):
+            found |= tags_in(v)
+    return found
+
+
+adv_src = {}  # tag -> [(id, block)]
+for f in glob.glob(G + "in_game/common/advances/*.txt"):
+    for k, _, v in P(f):
+        if k and isinstance(v, list):
+            for tg in tags_in(get(v, "potential") or []):
+                adv_src.setdefault(tg, []).append((k, v))
+
+formables = [(fid, b) for fid, _, b in P(G + "in_game/common/formable_countries/00_formable_countries.txt")
+             if fid and isinstance(b, list)]
+
+
+# ================================================================ rendering (per language)
+def fmt_num(x):
+    return "%g" % x
+
+
+def mod_line(key, val):
+    name = L("MODIFIER_TYPE_NAME_" + key, key)
+    t = mod_types.get(key, {})
+    if t.get("boolean") == "yes" or val in ("yes", "no"):
+        return f"{name}: {T('да') if val == 'yes' else T('нет')}"
+    try:
+        x = float(val)
+    except ValueError:
+        x = script_values.get(val)
+        if x is None:
+            return f"{name}: {val}"
+    if t.get("percent") == "yes":
+        return f"{name}: {'+' if x > 0 else ''}{fmt_num(round(x * 100, 2))}%"
+    return f"{name}: {'+' if x > 0 else ''}{fmt_num(x)}"
+
+
+def ref(v):
+    """Localize a scripted reference such as culture:swedish or c:SWE."""
+    if not isinstance(v, str):
+        return "…"
+    m = re.match(r"^([a-z_]+):(.+)$", v)
+    if not m:
+        return L(v, v)
+    kind, key = m.groups()
+    if kind == "c":
+        return f"{L(key, key)} ({key})"
+    if kind in ("language", "dialect"):
+        return adj(key, lang_word=True)
+    if kind in ("culture", "culture_group"):
+        return adj(key)
+    return L(key, key)
+
+
+def node(text, children=None, kind=None):
+    n = {"t": text}
+    if children:
+        n["c"] = children
+    if kind:
+        n["k"] = kind
+    return n
+
+
+def yesno(v):
+    return v == "yes"
+
+
+def trig_list(block):
+    return [n for n in (trig(k, op, v) for k, op, v in block) if n]
+
+
+GROUPS = {"OR": "Любое из:", "AND": "Все из:", "NOT": "НЕ выполнено:", "NOR": "Ни одно из:", "not": "НЕ выполнено:"}
+YESNO = {
+    "is_subject": ("Является субъектом", "Не является субъектом"), "at_war": ("Ведёт войну", "Не ведёт войну"),
+    "in_civil_war": ("Идёт гражданская война", "Нет гражданской войны"),
+    "is_hegemon": ("Является гегемоном", "Не является гегемоном"),
+    "is_culture_native_american": ("Культура коренных американцев", "Культура не коренных американцев"),
+    "is_frankokratia_state": ("Государство франкократии", "Не государство франкократии"),
+    "situation_has_ended": ("Ситуация завершилась", "Ситуация не завершилась"),
+    "has_ruler": ("Есть правитель", "Нет правителя"),
+}
+SIMPLE = {  # key -> phrase with one placeholder for ref(value)
+    "has_culture_group": "Группа культур: {}", "culture.language": "Язык культуры: {}", "language": "Язык культуры: {}",
+    "culture.dialect": "Диалект: {}", "court_language": "Язык двора: {}", "religion": "Религия: {}", "owns": "Владеет локацией: {}",
+    "current_age": "Текущая эпоха: {}", "has_reform": "Есть реформа правления: {}", "government_type": "Тип правления: {}",
+    "has_estate_privilege": "Есть привилегия сословия: {}", "has_advance": "Изучено развитие: {}",
+    "country_rank": "Ранг страны: {}", "is_member_of_international_organization": "Член организации: {}",
+    "is_leader_of_international_organization": "Лидер организации: {}", "has_presence_in": "Есть присутствие в: {}",
+    "is_core_of": "Является ядром страны {}", "is_situation_active": "Активна ситуация: {}",
+    "is_subject_or_below_of": "Субъект страны {}", "in_union_with": "В унии со страной {}", "exists": "Существует: {}",
+}
+
+
+def trig(k, op, v):
+    k = k.strip('"') if k else k
+    neg = op == "!="
+    pre = T("НЕ ") if neg else ""
+    if k is None:
+        return node(str(v)) if isinstance(v, str) else None
+    if k in GROUPS and isinstance(v, list):
+        return node(T(GROUPS[k]), trig_list(v), "group")
+    if k in ("trigger_if", "trigger_else_if") and isinstance(v, list):
+        lim = get(v, "limit") or []
+        rest = [(a, b, c) for a, b, c in v if a != "limit"]
+        return node(T("Если" if k == "trigger_if" else "Иначе, если"),
+                    [node(T("условие:"), trig_list(lim), "group"), node(T("то требуется:"), trig_list(rest), "group")], "if")
+    if k == "trigger_else" and isinstance(v, list):
+        return node(T("Иначе требуется:"), trig_list(v), "group")
+    if k == "limit" and isinstance(v, list):
+        return node(T("Условие:"), trig_list(v), "group")
+    if k == "custom_tooltip":
+        key = get(v, "text") if isinstance(v, list) else v
+        return node(L(key, key), None, "tooltip")
+    if k == "always":
+        return node(T("Всегда") if yesno(v) else T("Никогда (недоступно)"))
+    if k == "culture" and isinstance(v, list):
+        return node(pre + T("Основная культура:"), trig_list(v), "group")
+    if k == "culture":
+        return node(pre + T("Основная культура: {}", ref(v)))
+    if k == "any_primary_or_accepted_or_tolerated_culture":
+        return node(T("Любая основная, принятая или терпимая культура:"),
+                    trig_list(v) if isinstance(v, list) else [node(ref(v))], "group")
+    if k == "religion.group":
+        return node(T("Группа религий НЕ {}" if neg else "Группа религий: {}", ref(v)))
+    if k == "tag":
+        return node(pre + T("Страна: {}", f"{L(v, v)} ({v})"))
+    if k == "this" and isinstance(v, str):
+        return node(T("Не является страной {}" if neg else "Является страной {}", ref(v)))
+    if k == "country_exists":
+        return node(T("Существует страна {}", ref(v)) if v != "no" else T("Страна не существует"))
+    if k == "has_or_had_tag":
+        return node(T("Является или была страной {}", f"{L(v, v)} ({v})"))
+    if k == "current_age_or_later":
+        return node(T("Эпоха не раньше: {}", ref(get(v, "age") if isinstance(v, list) else v)))
+    if k in YESNO:
+        return node(T(YESNO[k][0] if yesno(v) else YESNO[k][1]))
+    if k == "country_rank_level":
+        names = {lv: L(r, r) for r, lv in rank_level.items()}
+        try:
+            lv = int(v)
+        except ValueError:
+            return node(T("Уровень ранга {} {}", op, v), None, "raw")
+        if op in ("<", ">"):
+            return node(T("Ранг ниже, чем «{}»" if op == "<" else "Ранг выше, чем «{}»", names.get(lv, lv)))
+        return node(T("Уровень ранга {} {}", op, v))
+    if k == "capital" and isinstance(v, list):
+        return node(T("Столица:"), trig_list(v), "group")
+    if k == "capital":
+        return node(T("Столица: {}", ref(v)))
+    if k == "is_member_of_international_organization" and v in ("yes", "no"):
+        return node(T("Состоит в организации" if v == "yes" else "Не состоит в организации"))
+    if k == "is_member_of_international_organization_of_type":
+        return node(pre + T("Член организации типа: {}", ref(get(v, "type") if isinstance(v, list) else v)))
+    if k == "has_dlc":
+        return node(T("Есть DLC «{}»", L(v, v)))
+    if k.startswith("estate_power("):
+        est = re.search(r"estate_type:(\w+)", k)
+        return node(T("Сила сословия «{}» {} {}", L(est.group(1)) if est else k, op, v))
+    if k == "has_variable":
+        return node(T("Есть переменная «{}» (событие/решение)", v))
+    if k == "current_year":
+        return node(T("Год {} {}", op, v))
+    if k == "region" and isinstance(v, str):
+        return node(T("Регион: {}", ref(v)))
+    if k in SIMPLE and isinstance(v, str):
+        return node(pre + T(SIMPLE[k], ref(v)))
+    if isinstance(v, list):
+        return node(f"{ref(k) if ':' in k else k}:", trig_list(v), "group")
+    rhs = T("да") if v == "yes" else T("нет") if v == "no" else ref(v)
+    return node(f"{k} {op} {rhs}", None, "raw")
+
+
+def eff_list(block):
+    return [n for n in (eff(k, op, v) for k, op, v in block) if n]
+
+
+def val(v):
+    if isinstance(v, str):
+        return fmt_num(script_values[v]) if v in script_values else v
+    return "…"
+
+
+GOOD_EFF = {  # key -> (phrase, which value)
+    "unlock_government_reform_effect": ("Открывает реформу правления: {}", "type"),
+    "add_reform": ("Добавляет реформу: {}", None), "add_replacing_gov_reform": ("Добавляет реформу: {}", "reform"),
+    "unlock_policy_effect": ("Открывает политику: {}", "type"),
+    "unlock_casus_belli_effect": ("Открывает повод к войне: {}", "type"), "research_advance": ("Изучает развитие: {}", None),
+}
+PLAIN_EFF = {
+    "remove_reform": ("Убирает реформу: {}", None), "change_government_type": ("Меняет тип правления на: {}", None),
+    "set_capital": ("Столица переносится в {}", None), "move_capital_event_effect": ("Предлагает перенести столицу в {}", "to"),
+    "set_court_language": ("Язык двора: {}", None), "add_core": ("Добавляет ядро: {}", None),
+    "destroy_international_organization": ("Распускает международную организацию {}", "target"),
+    "change_societal_value": ("Сдвигает общественную ценность: {}", "type"),
+}
+FLAT_EFF = {"change_country_color": "Меняет цвет страны на карте", "rename_location": "Переименовывает локацию",
+            "remove_country_from_international_organization": "Выходит из международной организации",
+            "change_integration_level": "Меняет уровень интеграции локаций"}
+GAIN = {"add_stability": "stability", "add_government_power": "government_power", "add_legitimacy": "legitimacy",
+        "add_prestige": "prestige"}
+GAIN_FALLBACK = {"add_stability": "Стабильность", "add_government_power": "Сила правительства",
+                 "add_legitimacy": "Легитимность", "add_prestige": "Престиж"}
+
+
+def eff(k, op, v):
+    if k is None or k in ("limit", "remove_variable", "set_variable"):
+        return None
+    if k in ("if", "else_if") and isinstance(v, list):
+        kids = eff_list([(a, b, c) for a, b, c in v if a != "limit"])
+        if not kids:
+            return None
+        return node(T("Если" if k == "if" else "Иначе, если"),
+                    [node(T("условие:"), trig_list(get(v, "limit") or []), "group"), node(T("то:"), kids, "group")], "if")
+    if k == "else" and isinstance(v, list):
+        return node(T("Иначе:"), eff_list(v), "group")
+    if k == "hidden_effect" and isinstance(v, list):
+        kids = eff_list(v)
+        return node(T("Скрытые эффекты:"), kids, "group") if kids else None
+    if k == "set_country_rank_effect":
+        r = get(v, "rank")
+        return node(T("Ранг страны становится: {}", ref(r)), None, "rank:" + r.split(":")[-1])
+    if k in GOOD_EFF or k in PLAIN_EFF:
+        phrase, sub = GOOD_EFF.get(k) or PLAIN_EFF[k]
+        target = get(v, sub) if sub and isinstance(v, list) else v
+        return node(T(phrase, ref(target)), None, "good" if k in GOOD_EFF else None)
+    if k in FLAT_EFF:
+        return node(T(FLAT_EFF[k]))
+    if k == "add_country_modifier":
+        m = get(v, "modifier")
+        yrs = get(v, "years")
+        kids = [node(mod_line(a, b)) for a, b in static_mods.get(m, [])]
+        name = L("STATIC_MODIFIER_NAME_" + m, L(m, m))
+        return node(T("Модификатор «{}»", name) + (T(" на {} лет", yrs) if yrs else ""), kids, "good")
+    if k in GAIN:
+        name = L(GAIN[k], "") or T(GAIN_FALLBACK[k])
+        return node(f"{name}: +{val(v)}", None, "good")
+    if k == "trigger_event_non_silently":
+        title = L(v + ".title", "") or L(v + ".t", "")
+        return node(T("Событие: {}", title) if title else T("Событие {}", v))
+    if isinstance(v, list):
+        kids = eff_list(v)
+        label = ref(k) if ":" in k else L(k, k)
+        return node(f"{label}:", kids, "group") if kids else node(label, None, "raw")
+    return node(f"{L(k, k)}{'' if v == 'yes' else ' = ' + ref(v)}", None, "raw")
+
+
+def build_lang(lang):
+    global LANG, loc, loc_en
+    LANG = lang
+    loc = load_loc([G + f"main_menu/localization/{lang}", G + f"in_game/localization/{lang}"])
+    if not loc_en:
+        loc_en = load_loc([G + "main_menu/localization/english"])
+
+    ranks = {}
+    for k, v in rank_src:
+        rm = get(v, "rank_modifier") or []
+        ranks[k] = {"name": L(k, k), "level": rank_level[k],
+                    "mods": [mod_line(a, b) for a, _, b in rm if a and not a.startswith("ai_") and isinstance(b, str)]}
+
+    def advances(tag):
+        out = []
+        for k, v in adv_src.get(tag, []):
+            pot = get(v, "potential") or []
+            age = get(v, "age", "")
+            m = re.match(r"age_(\d+)_", age)
+            bonuses, unlocks = [], []
+            for kk, _, vv in v:
+                if not kk or not isinstance(vv, str):
+                    continue
+                if kk in UNLOCKS:
+                    unlocks.append(f"{T(UNLOCKS[kk])}: {L(vv, vv)}")
+                elif kk in mod_types:
+                    bonuses.append(mod_line(kk, vv))
+            extra = [(a, b, c) for a, b, c in pot if not (a and TAG_RE.match(a)) and not (
+                a == "OR" and isinstance(c, list) and all(TAG_RE.match(x or "") for x, _, _ in c))]
+            out.append({"id": k, "n": L(k, k), "age": int(m.group(1)) if m else 0, "ageN": L(age, age),
+                        "req": [L(r, r) for r in get_all(v, "requires")], "b": bonuses, "u": unlocks,
+                        "cond": trig_list(extra), "d": L(k + "_desc", "")})
+        return sorted(out, key=lambda a: (a["age"], a["n"]))
+
+    items = []
+    for fid, b in formables:
+        tag = get(b, "tag", "")
+        terr, req = {}, set()
+        for key, label in (("continents", "Континенты"), ("sub_continents", "Субконтиненты"), ("regions", "Регионы"),
+                           ("areas", "Области"), ("provinces", "Провинции"), ("locations", "Локации")):
+            lst = [x for _, _, x in (get(b, key) or []) if isinstance(x, str)]
+            if not lst:
+                continue
+            entries = []
+            for g in lst:
+                ms = members.get(g, {g} if g not in excluded else set())
+                req |= ms
+                entries.append({"n": L(g, g), "c": len(ms)})
+            terr[T(label)] = entries
+        frac = float(get(b, "required_locations_fraction", "1.0"))
+        cont = Counter(loc_continent.get(l) for l in req if loc_continent.get(l)).most_common(1)
+        color = get(b, "color")
+        effect = eff_list(get(b, "form_effect") or [])
+        pot_raw = get(b, "potential") or []
+        by_event = [(k2, v2) for k2, _, v2 in pot_raw] == [("always", "no")]
+        adv = advances(tag)
+        items.append({
+            "id": fid, "tag": tag, "name": L(get(b, "name", tag), tag),
+            "level": int(get(b, "level", "1")), "rule": get(b, "rule", "historical"),
+            "frac": frac, "cap": get(b, "capital_required") == "yes",
+            "own": get(b, "potential_requires_own", "yes") != "no",
+            "color": to_hex(named_colors.get(color)) if isinstance(color, str) else to_hex(color),
+            "terr": terr, "total": len(req), "need": math.ceil(len(req) * frac) if req else 0,
+            "cont": L(cont[0][0], cont[0][0]) if cont else (T("Только событием") if by_event else "—"),
+            "pot": trig_list(pot_raw), "allow": trig_list(get(b, "allow") or []), "eff": effect,
+            "ranks": sorted(set(re.findall(r'"k": "rank:(\w+)"', json.dumps(effect, ensure_ascii=False)))),
+            "event": by_event, "desc": L(fid + "_desc", ""), "adv": adv, "nadv": len(adv),
+        })
+    items.sort(key=lambda x: (-x["level"], x["name"]))
+    return {"lang": lang, "items": items, "ranks": ranks, "version": VERSION}
+
+
+# ================================================================ output
+def full_page(body):
+    return ("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
+            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n</head>\n<body>\n"
+            + body + "\n</body>\n</html>\n")
+
+
+def main():
+    all_data = {}
+    os.makedirs(os.path.join(HERE, "site", "data"), exist_ok=True)
+    for lang in LANGS:
+        d = build_lang(lang)
+        all_data[lang] = d
+        p = os.path.join(HERE, "site", "data", f"{lang}.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False, separators=(",", ":"))
+        print(f"{lang:13} {len(d['items'])} formables, {os.path.getsize(p) // 1024} KB")
+    tpl = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
+    with open(os.path.join(HERE, "site", "index.html"), "w", encoding="utf-8") as fh:
+        fh.write(tpl.replace("/*__EMBED__*/null", "null"))
+    standalone = full_page(tpl.replace("/*__EMBED__*/null", json.dumps(all_data, ensure_ascii=False, separators=(",", ":"))))
+    # GitHub Pages version: a complete document that loads data/<lang>.json
+    with open(os.path.join(HERE, "site", "pages.html"), "w", encoding="utf-8") as fh:
+        fh.write(full_page(tpl.replace("/*__EMBED__*/null", "null")))
+    with open(os.path.join(HERE, "formables.html"), "w", encoding="utf-8") as fh:
+        fh.write(standalone)
+    print("standalone:", os.path.getsize(os.path.join(HERE, "formables.html")) // 1024, "KB")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>EU5 Formable Nations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an atlas index. Filters on the left like a map legend, the register of nations as a table, a dossier drawer for each nation. */
+:root {
+  --paper: #eef1ef; --sheet: #fbfcfa; --sheet-2: #e4e9e6; --ink: #1d2a33; --ink-2: #566670;
+  --rule: #cdd6d2; --gilt: #9a6b12; --gilt-ink: #ffffff; --chip: #dfe6e2;
+  --good: #2c7a3f; --raw: #66757d; --shade: rgba(29, 42, 51, .08);
+  --t1: #7a8794; --t2: #4f8a5b; --t3: #3f6fb0; --t4: #8a4fb0; --t5: #b0473f; --tier-ink: #ffffff;
+  --display: "Cormorant Garamond", "Iowan Old Style", Georgia, "Noto Serif", serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", "Noto Sans", "PingFang SC", "Hiragino Sans", "Malgun Gothic", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f161b; --sheet: #151f26; --sheet-2: #1c2932; --ink: #e5ece8; --ink-2: #98a8b0;
+    --rule: #2a3a44; --gilt: #d9aa52; --gilt-ink: #17130a; --chip: #22313b;
+    --good: #7cc98b; --raw: #9aa9b1; --shade: rgba(0, 0, 0, .35);
+    --t1: #8f9cab; --t2: #5fae71; --t3: #5f92d8; --t4: #a87bd6; --t5: #d6675d; --tier-ink: #0f161b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f161b; --sheet: #151f26; --sheet-2: #1c2932; --ink: #e5ece8; --ink-2: #98a8b0;
+  --rule: #2a3a44; --gilt: #d9aa52; --gilt-ink: #17130a; --chip: #22313b;
+  --good: #7cc98b; --raw: #9aa9b1; --shade: rgba(0, 0, 0, .35);
+  --t1: #8f9cab; --t2: #5fae71; --t3: #5f92d8; --t4: #a87bd6; --t5: #d6675d; --tier-ink: #0f161b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.45 var(--body); padding-inline: 16px; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gilt); outline-offset: 2px; }
+.page { max-width: 1400px; margin: 0 auto; padding-block: 20px 40px; }
+header { display: flex; gap: 12px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+h1 { font: 700 clamp(26px, 4vw, 38px)/1.05 var(--display); margin: 0 0 4px; letter-spacing: .2px; text-wrap: balance; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tools select, .tools button { border: 1px solid var(--rule); background: var(--sheet); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; }
+@media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.layout > * { min-width: 0; }
+aside, main, details.help { background: var(--sheet); border: 1px solid var(--rule); border-radius: 8px; }
+aside { padding: 14px; align-self: start; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); }
+@media (max-width: 900px) { aside { position: static; } }
+.fgroup { margin-bottom: 14px; }
+.ftitle { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-2); margin-bottom: 6px; font-weight: 600; }
+input[type=search], aside select { width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--rule); background: var(--sheet-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--rule); background: var(--chip); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--gilt); color: var(--gilt-ink); border-color: var(--gilt); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin: 5px 0; cursor: pointer; }
+.reset { width: 100%; padding: 7px; border-radius: 6px; border: 1px solid var(--rule); background: transparent; cursor: pointer; }
+.reset:hover { background: var(--sheet-2); }
+main { overflow: hidden; }
+.bar { display: flex; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--rule); flex-wrap: wrap; color: var(--ink-2); font-size: 13px; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .7px; color: var(--ink-2); cursor: pointer; white-space: nowrap; user-select: none; background: var(--sheet); font-weight: 600; }
+th[aria-sort="ascending"]::after { content: " ▲"; } th[aria-sort="descending"]::after { content: " ▼"; }
+tbody tr { cursor: pointer; }
+tbody tr:hover, tbody tr.sel { background: var(--sheet-2); }
+tbody tr.sel { box-shadow: inset 3px 0 0 var(--gilt); }
+.name { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.sw { width: 14px; height: 14px; border-radius: 2px; flex: none; box-shadow: 0 0 0 1px var(--shade), inset 0 0 0 1px var(--shade); }
+.nm { font-weight: 500; }
+.tag { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.tier { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 22px; padding: 0 7px; border-radius: 4px; font: 700 13px/1 var(--mono); color: var(--tier-ink); }
+.t1 { background: var(--t1); } .t2 { background: var(--t2); } .t3 { background: var(--t3); } .t4 { background: var(--t4); } .t5 { background: var(--t5); }
+.rule { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--chip); white-space: nowrap; }
+.muted { color: var(--ink-2); }
+.small { font-size: 12px; }
+.gilt { color: var(--gilt); font-size: 12px; white-space: nowrap; font-weight: 500; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.variant { font-size: 11px; color: var(--gilt); margin-left: 6px; }
+.empty { padding: 30px; text-align: center; color: var(--ink-2); }
+.loading { padding: 40px; text-align: center; color: var(--ink-2); }
+@media (max-width: 640px) {
+  th:nth-child(3), td:nth-child(3), th:nth-child(4), td:nth-child(4), th:nth-child(6), td:nth-child(6) { display: none; }
+  th, td { padding: 8px; }
+  .name { min-width: 0; }
+}
+details.help { padding: 10px 14px; margin-bottom: 14px; }
+details.help summary { cursor: pointer; font-weight: 600; }
+details.help p { max-width: 75ch; }
+.ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+.ranks ul { margin: 0; padding-left: 18px; font-size: 14px; }
+.drawer { position: fixed; top: 0; right: 0; height: 100%; width: min(780px, 100%); overflow-y: auto; z-index: 20;
+  background: var(--sheet); border-left: 1px solid var(--rule); padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility .2s; }
+.drawer.open { transform: none; visibility: visible; box-shadow: -8px 0 30px var(--shade); }
+.backdrop { position: fixed; inset: 0; background: var(--shade); z-index: 19; }
+@media (prefers-reduced-motion: reduce) { .drawer { transition: none; } }
+.dhead { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.dhead h2 { margin: 0; font: 700 30px/1.1 var(--display); }
+.dhead .sw { width: 22px; height: 22px; }
+.close { margin-left: auto; border: 1px solid var(--rule); background: transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.desc { font: italic 600 17px/1.45 var(--display); color: var(--ink-2); max-width: 72ch; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px; margin-top: 12px; }
+.cards > * { min-width: 0; }
+.card { background: var(--sheet-2); border-radius: 8px; padding: 12px 14px; }
+.card h3 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-2); font-weight: 600; }
+.wide { grid-column: 1 / -1; }
+ul.tree { list-style: none; margin: 0; padding-left: 0; }
+ul.tree ul.tree { padding-left: 14px; border-left: 2px solid var(--rule); margin: 3px 0 3px 4px; }
+ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
+.k-group > span, .k-if > span { font-weight: 600; }
+.k-tooltip > span { font-style: italic; }
+.k-good > span { color: var(--good); }
+.k-raw > span { color: var(--raw); font-family: var(--mono); font-size: 13px; }
+.k-rank > span { color: var(--gilt); font-weight: 600; }
+.pill { display: inline-block; margin: 2px 4px 2px 0; padding: 2px 8px; border-radius: 4px; background: var(--chip); font-size: 13px; }
+.pill b { font: 500 11px var(--mono); color: var(--ink-2); margin-left: 4px; }
+.terr h4 { margin: 8px 0 4px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.meter { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
+.meter > i { display: block; height: 100%; background: var(--gilt); }
+.age { margin: 12px 0 4px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.roman { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; padding: 0 6px; border-radius: 12px;
+  background: var(--gilt); color: var(--gilt-ink); font: 700 14px/1 var(--display); }
+.adv { border: 1px solid var(--rule); border-radius: 6px; padding: 8px 10px; margin: 6px 0; background: var(--sheet); }
+.adv .an { font-weight: 600; }
+.adv ul { margin: 4px 0 0; padding-left: 18px; }
+.adv li.b { color: var(--good); } .adv li.u { color: var(--gilt); }
+.adv details { margin-top: 4px; font-size: 13px; color: var(--ink-2); }
+.adv summary { cursor: pointer; }
+</style>
+
+<div class="page">
+  <header>
+    <div>
+      <h1 id="h1"></h1>
+      <div class="sub" id="stats"></div>
+    </div>
+    <div class="tools">
+      <label class="sub" for="lang" id="langLabel"></label>
+      <select id="lang"></select>
+      <button type="button" id="theme"></button>
+    </div>
+  </header>
+
+  <details class="help">
+    <summary id="helpTitle"></summary>
+    <div id="helpBody"></div>
+    <div class="ranks" id="ranks"></div>
+  </details>
+
+  <div class="layout">
+    <aside id="filters">
+      <div class="fgroup"><label class="ftitle" for="q" data-t="search"></label><input type="search" id="q"></div>
+      <div class="fgroup"><span class="ftitle" data-t="tier"></span><div class="chips" id="tiers"></div></div>
+      <div class="fgroup"><span class="ftitle" data-t="rule"></span><div class="chips" id="rules"></div></div>
+      <div class="fgroup"><label class="ftitle" for="cont" data-t="continent"></label><select id="cont"></select></div>
+      <div class="fgroup">
+        <span class="ftitle" data-t="features"></span>
+        <label class="check"><input type="checkbox" id="fRank"> <span data-t="fRank"></span></label>
+        <label class="check"><input type="checkbox" id="fEff"> <span data-t="fEff"></span></label>
+        <label class="check"><input type="checkbox" id="fCap"> <span data-t="fCap"></span></label>
+        <label class="check"><input type="checkbox" id="fAllow"> <span data-t="fAllow"></span></label>
+        <label class="check"><input type="checkbox" id="fAdv"> <span data-t="fAdv"></span></label>
+        <label class="check"><input type="checkbox" id="fNoEvent"> <span data-t="fNoEvent"></span></label>
+      </div>
+      <div class="fgroup"><label class="ftitle" for="sort" data-t="sort"></label><select id="sort"></select></div>
+      <button class="reset" id="reset" type="button" data-t="reset"></button>
+    </aside>
+
+    <main>
+      <div class="bar"><span id="count"></span><span data-t="hint"></span></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr>
+            <th data-k="name" data-t="colName"></th><th data-k="level" data-t="colTier"></th><th data-k="rule" data-t="colRule"></th>
+            <th data-k="cont" data-t="colCont"></th><th data-k="need" data-t="colTerr"></th><th data-k="nadv" data-t="colAdv"></th>
+            <th data-k="rank" data-t="colReward"></th>
+          </tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="loading" id="loading">…</div>
+        <div class="empty" id="empty" hidden></div>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="backdrop" id="backdrop" hidden></div>
+<section class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle"></section>
+
+<script>
+const EMBED = null;
+const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
+  braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
+const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
+  tr: "turkish", ja: "japanese", ko: "korean", zh: "simp_chinese" };
+
+const UI = {
+  russian: {
+    h1: "Формируемые страны", stats: (n, t, v) => `${n} стран · тиры ${t} · данные из файлов игры ${v}`, lang: "Язык", theme: "◐ Тема",
+    search: "Поиск", searchPh: "Название, тег, регион, культура, улучшение…", tier: "Тир", rule: "Правило", continent: "Континент", all: "Все",
+    features: "Особенности", fRank: "Повышает ранг", fEff: "Есть особые эффекты", fCap: "Нужна столица в этих землях",
+    fAllow: "Есть доп. условия", fAdv: "Есть страновые улучшения", fNoEvent: "Скрыть «только событием»",
+    sort: "Сортировка", reset: "Сбросить фильтры", hint: "Нажмите на строку, чтобы открыть подробности",
+    colName: "Страна", colTier: "Тир", colRule: "Правило", colCont: "Континент", colTerr: "Территория", colAdv: "Улучш.", colReward: "Награда",
+    shown: (a, b) => `Показано: ${a} из ${b}`, empty: "Ничего не найдено — ослабьте фильтры.",
+    rules: { historical: "Историческое", plausible: "Правдоподобное", fantasy: "Фантазийное" },
+    sorts: { "level:desc": "Тир — по убыванию", "level:asc": "Тир — по возрастанию", "name:asc": "Название — А→Я",
+      "need:asc": "Нужно локаций — меньше", "need:desc": "Нужно локаций — больше", "frac:asc": "Требуемая доля — меньше",
+      "cont:asc": "Континент", "nadv:desc": "Страновых улучшений — больше" },
+    tierChip: (l, n) => `Тир ${l} · ${n}`, locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
+    special: "особые эффекты", variant: "вариант",
+    helpTitle: "Что такое тир, правило и бонусы ранга",
+    help: `<p><b>Тир</b> — уровень формируемой страны (<code>level</code>, от 1 до 5). Сформировать можно только страну более высокого тира, чем текущая.</p>
+      <p><b>Правило</b> — в какой игровой настройке страна доступна: историческое — всегда, правдоподобное и фантазийное — если они разрешены в правилах игры.</p>
+      <p><b>Территория</b> — доля локаций из перечисленных земель, которой нужно владеть (моря, озёра и непроходимые земли не считаются). <b>Кто видит</b> — условие появления в списке. <b>Условия</b> — что нужно для кнопки «Сформировать».</p>
+      <p>Тир сам по себе бонусов не даёт. Ранг и награды дают эффекты конкретной страны, а страновые улучшения открываются в дереве развития после формирования. Бонусы рангов:</p>`,
+    noBonus: "нет бонусов", close: "Закрыть ✕", tierN: l => `Тир ${l}`,
+    terrTitle: "Требуемая территория", needOwn: (p, a, b) => `Нужно владеть <b>${p}%</b> локаций: <b>${a}</b> из <b>${b}</b>`,
+    capReq: "Столица должна быть в этих землях", ownNo: "Видна в списке, даже если вы там ничего не владеете",
+    eventNote: "Формируется только через событие или решение — кнопки формирования нет", noTerr: "Территория не задана списком",
+    potTitle: "Кто видит (potential)", potNone: "Без ограничений", allowTitle: "Условия формирования (allow)", allowNone: "Только территория",
+    effTitle: "Эффекты при формировании", effNone: "Новое имя, флаг и цвет — без особых эффектов",
+    rankBonus: n => `Бонусы ранга «${n}»`, advTitle: (t, n) => `Страновые улучшения ${t} · ${n}`,
+    advNote: n => `Открываются в дереве развития, когда вы играете или играли за ${n}.`, age: n => `Эпоха ${n.toLowerCase()}`,
+    requires: "Требуется", unlocks: "Открывает", extra: "Доп. условия:", descr: "Описание", loadFail: "Не удалось загрузить данные языка.",
+  },
+  english: {
+    h1: "Formable Nations", stats: (n, t, v) => `${n} nations · tiers ${t} · from the game files, version ${v}`, lang: "Language", theme: "◐ Theme",
+    search: "Search", searchPh: "Name, tag, region, culture, advance…", tier: "Tier", rule: "Rule", continent: "Continent", all: "All",
+    features: "Features", fRank: "Raises rank", fEff: "Has special effects", fCap: "Capital must be in the land",
+    fAllow: "Has extra conditions", fAdv: "Has country advances", fNoEvent: "Hide event-only",
+    sort: "Sort", reset: "Clear filters", hint: "Select a row to open details",
+    colName: "Nation", colTier: "Tier", colRule: "Rule", colCont: "Continent", colTerr: "Territory", colAdv: "Adv.", colReward: "Reward",
+    shown: (a, b) => `Showing ${a} of ${b}`, empty: "No nations match. Loosen the filters.",
+    rules: { historical: "Historical", plausible: "Plausible", fantasy: "Fantasy" },
+    sorts: { "level:desc": "Tier, high to low", "level:asc": "Tier, low to high", "name:asc": "Name, A to Z",
+      "need:asc": "Locations needed, fewest", "need:desc": "Locations needed, most", "frac:asc": "Required share, lowest",
+      "cont:asc": "Continent", "nadv:desc": "Most country advances" },
+    tierChip: (l, n) => `Tier ${l} · ${n}`, locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
+    special: "special effects", variant: "variant",
+    helpTitle: "What tier, rule and rank bonuses mean",
+    help: `<p><b>Tier</b> is the formable's level (<code>level</code>, 1 to 5). You can only form a nation of a higher tier than your current one.</p>
+      <p><b>Rule</b> is the game setting that allows it: historical ones are always available, plausible and fantasy ones only when the game rules allow them.</p>
+      <p><b>Territory</b> is the share of locations in the listed lands you must own (seas, lakes and impassable land don't count). <b>Who sees it</b> is the condition for appearing in the list. <b>Conditions</b> are what the Form button needs.</p>
+      <p>A tier gives no bonus by itself. Rank and rewards come from each nation's own effects, and country advances open in the advance tree once you have formed it. Rank bonuses:</p>`,
+    noBonus: "no bonuses", close: "Close ✕", tierN: l => `Tier ${l}`,
+    terrTitle: "Required territory", needOwn: (p, a, b) => `Own <b>${p}%</b> of the locations: <b>${a}</b> of <b>${b}</b>`,
+    capReq: "Your capital must be in these lands", ownNo: "Listed even if you own nothing there",
+    eventNote: "Formed only through an event or decision; there is no Form button", noTerr: "No territory list",
+    potTitle: "Who sees it (potential)", potNone: "No restrictions", allowTitle: "Conditions to form (allow)", allowNone: "Territory only",
+    effTitle: "Effects on forming", effNone: "New name, flag and color, no special effects",
+    rankBonus: n => `${n} rank bonuses`, advTitle: (t, n) => `Country advances ${t} · ${n}`,
+    advNote: n => `Available in the advance tree while you are or were ${n}.`, age: n => `Age of ${n}`,
+    requires: "Requires", unlocks: "Unlocks", extra: "Extra conditions:", descr: "Description", loadFail: "Couldn't load this language's data.",
+  },
+};
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII"];
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+let lang = store.get("eu5f-lang");
+if (!LANGS[lang]) {
+  lang = "english";
+  for (const l of navigator.languages || [navigator.language || "en"]) {
+    const m = BROWSER[String(l).toLowerCase().split("-")[0]];
+    if (m) { lang = m; break; }
+  }
+}
+const u = () => UI[lang] || UI.english;
+let DATA = null, items = [];
+const cache = {};
+const state = { q: "", tiers: new Set(), rules: new Set(), cont: "", fRank: false, fEff: false, fCap: false, fAllow: false,
+  fAdv: false, fNoEvent: false, sort: "level:desc", sel: null };
+
+async function loadLang(l) {
+  if (EMBED && EMBED[l]) return EMBED[l];
+  if (cache[l]) return cache[l];
+  const r = await fetch(`data/${l}.json`);
+  if (!r.ok) throw new Error(r.status);
+  return (cache[l] = await r.json());
+}
+
+function prepare() {
+  items = DATA.items;
+  const nameCount = {};
+  for (const it of items) nameCount[it.name] = (nameCount[it.name] || 0) + 1;
+  const flat = n => n.t + " " + (n.c || []).map(flat).join(" ");
+  for (const it of items) {
+    it.variant = nameCount[it.name] > 1 ? it.id.replace(/_f$/, "") : "";
+    it.hay = [it.name, it.tag, it.cont, ...Object.values(it.terr).flat().map(e => e.n), ...it.pot.map(flat), ...it.allow.map(flat),
+      ...it.adv.map(a => a.n)].join(" ").toLowerCase();
+    it.rankLevel = Math.max(0, ...it.ranks.map(r => DATA.ranks[r]?.level || 0));
+  }
+}
+
+function chips(el, values, label, set) {
+  el.innerHTML = values.map(v => `<button type="button" class="chip" aria-pressed="${set.has(v)}" data-v="${esc(v)}">${esc(label(v))}</button>`).join("");
+}
+
+function paintChrome() {
+  const t = u();
+  document.documentElement.lang = { simp_chinese: "zh", braz_por: "pt", japanese: "ja", korean: "ko" }[lang] || lang.slice(0, 2);
+  document.title = `EU5 · ${t.h1}`;
+  $("#h1").textContent = `${t.h1} · Europa Universalis V`;
+  $("#langLabel").textContent = t.lang;
+  $("#theme").textContent = t.theme;
+  document.querySelectorAll("[data-t]").forEach(el => { el.textContent = t[el.dataset.t]; });
+  $("#q").placeholder = t.searchPh;
+  $("#sort").innerHTML = Object.entries(t.sorts).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("");
+  $("#sort").value = state.sort;
+  $("#helpTitle").textContent = t.helpTitle;
+  $("#helpBody").innerHTML = t.help;
+  if (!DATA) return;
+  const levels = [...new Set(items.map(i => i.level))].sort();
+  chips($("#tiers"), levels, l => t.tierChip(l, items.filter(i => i.level === l).length), state.tiers);
+  chips($("#rules"), Object.keys(t.rules), r => t.rules[r], state.rules);
+  const conts = [...new Set(items.map(i => i.cont))].sort((a, b) => a.localeCompare(b));
+  if (!conts.includes(state.cont)) state.cont = "";
+  $("#cont").innerHTML = `<option value="">${esc(t.all)}</option>` + conts.map(c => `<option${c === state.cont ? " selected" : ""}>${esc(c)}</option>`).join("");
+  $("#stats").textContent = t.stats(items.length, levels.join(", "), DATA.version);
+  $("#ranks").innerHTML = Object.values(DATA.ranks).sort((a, b) => b.level - a.level)
+    .map(r => `<div class="card"><h3>${esc(r.name)}</h3><ul>${r.mods.map(m => `<li>${esc(m)}</li>`).join("") || `<li>${esc(t.noBonus)}</li>`}</ul></div>`).join("");
+}
+
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  const out = items.filter(i =>
+    (!q || i.hay.includes(q)) && (!state.tiers.size || state.tiers.has(i.level)) && (!state.rules.size || state.rules.has(i.rule)) &&
+    (!state.cont || i.cont === state.cont) && (!state.fRank || i.ranks.length) && (!state.fEff || i.eff.length) &&
+    (!state.fCap || i.cap) && (!state.fAllow || i.allow.length) && (!state.fNoEvent || !i.event) && (!state.fAdv || i.nadv));
+  const [k, dir] = state.sort.split(":");
+  const m = dir === "desc" ? -1 : 1;
+  const key = i => k === "rank" ? i.rankLevel : i[k];
+  return out.sort((a, b) => {
+    const x = key(a), y = key(b);
+    const c = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return c * m || a.name.localeCompare(b.name);
+  });
+}
+
+function terrSummary(i) {
+  const t = u();
+  if (i.event) return `<span class="muted">${esc(t.eventOnly)}</span>`;
+  const all = Object.values(i.terr).flat();
+  const first = all.slice(0, 3).map(e => e.n).join(", ");
+  return `<div class="num">${esc(t.locs(i.need, i.total, Math.round(i.frac * 100)))}</div><div class="muted small">${esc(first)}${all.length > 3 ? ` +${all.length - 3}` : ""}</div>`;
+}
+
+function render() {
+  if (!DATA) return;
+  const t = u();
+  const list = filtered();
+  $("#count").textContent = t.shown(list.length, items.length);
+  $("#empty").textContent = t.empty;
+  $("#empty").hidden = list.length > 0;
+  $("#rows").innerHTML = list.map(i => `
+    <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
+      <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div>
+        <div class="tag">${esc(i.tag)}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
+      <td><span class="tier t${i.level}">${i.level}</span></td>
+      <td><span class="rule">${esc(t.rules[i.rule] || i.rule)}</span></td>
+      <td>${esc(i.cont)}</td>
+      <td>${terrSummary(i)}</td>
+      <td class="num">${i.nadv || `<span class="muted">—</span>`}</td>
+      <td>${i.ranks.length ? `<span class="gilt">↑ ${i.ranks.map(r => esc(DATA.ranks[r]?.name || r)).join(" / ")}</span>` : i.eff.length ? `<span class="muted small">${esc(t.special)}</span>` : ""}</td>
+    </tr>`).join("");
+  const [k, dir] = state.sort.split(":");
+  document.querySelectorAll("th").forEach(th => th.setAttribute("aria-sort", th.dataset.k === k ? (dir === "asc" ? "ascending" : "descending") : "none"));
+}
+
+function tree(nodes) {
+  if (!nodes || !nodes.length) return "";
+  return `<ul class="tree">${nodes.map(n => {
+    const k = (n.k || "").startsWith("rank:") ? "rank" : (n.k || "plain");
+    return `<li class="k-${k}"><span>${esc(n.t)}</span>${tree(n.c)}</li>`;
+  }).join("")}</ul>`;
+}
+
+function advances(i) {
+  const t = u();
+  if (!i.adv.length) return "";
+  const byAge = {};
+  for (const a of i.adv) (byAge[a.age] ||= []).push(a);
+  return `<div class="card wide"><h3>${esc(t.advTitle(i.tag, i.adv.length))}</h3><div class="muted small">${esc(t.advNote(i.name))}</div>` +
+    Object.keys(byAge).sort((a, b) => a - b).map(age => `<div class="age"><span class="roman">${ROMAN[age] || age}</span>${esc(UI[lang] ? t.age(byAge[age][0].ageN) : byAge[age][0].ageN)}</div>` +
+      byAge[age].map(a => `<div class="adv"><div class="an">${esc(a.n)}</div>
+        ${a.req.length ? `<div class="muted small">${esc(t.requires)}: ${a.req.map(esc).join(", ")}</div>` : ""}
+        ${a.b.length || a.u.length ? `<ul>${a.b.map(b => `<li class="b">${esc(b)}</li>`).join("")}${a.u.map(x => `<li class="u">${esc(t.unlocks)} — ${esc(x)}</li>`).join("")}</ul>` : ""}
+        ${a.cond.length ? `<div class="muted small">${esc(t.extra)}</div>${tree(a.cond)}` : ""}
+        ${a.d ? `<details><summary>${esc(t.descr)}</summary>${esc(a.d)}</details>` : ""}</div>`).join("")).join("") + `</div>`;
+}
+
+function openDetail(id, push = true) {
+  const t = u();
+  const i = items.find(x => x.id === id), d = $("#drawer");
+  if (!i) { closeDetail(); return; }
+  state.sel = id;
+  const pct = Math.round(i.frac * 100);
+  const terr = Object.entries(i.terr).map(([lab, list]) => `<h4>${esc(lab)}</h4>${list.map(e => `<span class="pill">${esc(e.n)}<b>${e.c}</b></span>`).join("")}`).join("");
+  const ranks = i.ranks.map(r => DATA.ranks[r]).filter(Boolean).map(r =>
+    `<div class="card"><h3>${esc(t.rankBonus(r.name))}</h3><ul class="tree">${r.mods.map(m => `<li class="k-good"><span>${esc(m)}</span></li>`).join("")}</ul></div>`).join("");
+  d.innerHTML = `
+    <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
+      <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
+      <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
+    ${i.desc ? `<p class="desc">${esc(i.desc)}</p>` : ""}
+    <div class="cards">
+      <div class="card terr"><h3>${esc(t.terrTitle)}</h3>
+        ${i.event ? `<div class="gilt" style="white-space:normal">${esc(t.eventNote)}</div>` : `<div>${t.needOwn(pct, i.need, i.total)}</div><div class="meter"><i style="width:${pct}%"></i></div>`}
+        ${i.cap ? `<div class="gilt">${esc(t.capReq)}</div>` : ""}
+        ${!i.own ? `<div class="muted small">${esc(t.ownNo)}</div>` : ""}
+        ${terr || (i.event ? "" : `<div class="muted">${esc(t.noTerr)}</div>`)}</div>
+      <div class="card"><h3>${esc(t.potTitle)}</h3>${tree(i.pot) || `<div class="muted">${esc(t.potNone)}</div>`}</div>
+      <div class="card"><h3>${esc(t.allowTitle)}</h3>${tree(i.allow) || `<div class="muted">${esc(t.allowNone)}</div>`}</div>
+      <div class="card"><h3>${esc(t.effTitle)}</h3>${tree(i.eff) || `<div class="muted">${esc(t.effNone)}</div>`}</div>
+      ${ranks}${advances(i)}
+    </div>`;
+  d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
+  $("#close").onclick = closeDetail;
+  if (push) history.replaceState(null, "", "#" + id);
+  render();
+  $("#close").focus({ preventScroll: true });
+}
+function closeDetail() {
+  $("#drawer").classList.remove("open"); $("#backdrop").hidden = true;
+  const was = state.sel; state.sel = null;
+  history.replaceState(null, "", location.pathname + location.search);
+  render();
+  if (was) document.querySelector(`tr[data-id="${CSS.escape(was)}"]`)?.focus({ preventScroll: true });
+}
+
+async function setLang(l) {
+  lang = l; store.set("eu5f-lang", l); $("#lang").value = l;
+  paintChrome();
+  $("#loading").hidden = false;
+  try {
+    DATA = await loadLang(l);
+    prepare();
+    $("#loading").hidden = true;
+    paintChrome(); render();
+    if (state.sel) openDetail(state.sel, false);
+  } catch (e) {
+    $("#loading").textContent = u().loadFail;
+  }
+}
+
+$("#lang").innerHTML = Object.entries(LANGS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("");
+$("#lang").addEventListener("change", e => setLang(e.target.value));
+$("#tiers").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; const v = +b.dataset.v;
+  state.tiers.has(v) ? state.tiers.delete(v) : state.tiers.add(v); b.setAttribute("aria-pressed", state.tiers.has(v)); render(); });
+$("#rules").addEventListener("click", e => { const b = e.target.closest(".chip"); if (!b) return; const v = b.dataset.v;
+  state.rules.has(v) ? state.rules.delete(v) : state.rules.add(v); b.setAttribute("aria-pressed", state.rules.has(v)); render(); });
+$("#rows").addEventListener("click", e => { const tr = e.target.closest("tr"); if (tr) openDetail(tr.dataset.id); });
+$("#rows").addEventListener("keydown", e => { if (e.key === "Enter") { const tr = e.target.closest("tr"); if (tr) openDetail(tr.dataset.id); } });
+$("#q").addEventListener("input", e => { state.q = e.target.value; render(); });
+$("#cont").addEventListener("change", e => { state.cont = e.target.value; render(); });
+$("#sort").addEventListener("change", e => { state.sort = e.target.value; render(); });
+const FLAGS = ["fRank", "fEff", "fCap", "fAllow", "fAdv", "fNoEvent"];
+for (const f of FLAGS) $("#" + f).addEventListener("change", e => { state[f] = e.target.checked; render(); });
+document.querySelectorAll("th").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.k, [ck, cd] = state.sort.split(":");
+  const desc = ["level", "rank", "nadv"].includes(k);
+  state.sort = `${k}:${ck === k ? (cd === "asc" ? "desc" : "asc") : (desc ? "desc" : "asc")}`;
+  $("#sort").value = state.sort;
+  render();
+}));
+$("#reset").addEventListener("click", () => {
+  state.q = ""; state.tiers.clear(); state.rules.clear(); state.cont = "";
+  FLAGS.forEach(f => { state[f] = false; $("#" + f).checked = false; });
+  $("#q").value = ""; $("#cont").value = "";
+  document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+  render();
+});
+$("#backdrop").addEventListener("click", closeDetail);
+document.addEventListener("keydown", e => { if (e.key === "Escape" && state.sel) closeDetail(); });
+const root = document.documentElement;
+const savedTheme = store.get("eu5f-theme");
+if (savedTheme === "dark" || savedTheme === "light") root.dataset.theme = savedTheme;
+$("#theme").addEventListener("click", () => {
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark"; store.set("eu5f-theme", root.dataset.theme);
+});
+if (location.hash.length > 1) state.sel = decodeURIComponent(location.hash.slice(1));
+setLang(lang);
+</script>
+
+</body>
+</html>
