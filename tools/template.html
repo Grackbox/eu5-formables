@@ -228,6 +228,7 @@ const UI = {
     sortsX: { "locs:desc": "Больше всего локаций", "name:asc": "Название — А→Я", "rankLevel:desc": "Ранг — по убыванию",
       "nadv:desc": "Страновых улучшений — больше", "cont:asc": "Континент", "cul:asc": "Культура" },
     fixedNote: "У этой страны нет тира: её нет в списке формируемых, поэтому сформировать её нельзя — можно только играть за неё с начала.",
+    startTier: l => `Если начать за неё, вы уже на тире ${l}: сформировать можно только страну тира выше ${l}.`,
     otherFound: (n, fx) => `Ещё ${n} в списке «${fx ? "формируемые" : "нельзя сформировать"}»`, otherShow: "Показать",
     twinBadge: t => `≠ формируемая ${t}`, twinOpen: "Открыть",
     twinFixedNote: (n, t) => `Не путать с формируемой страной «${n}» (${t}) — это другой тег с тем же названием.`,
@@ -268,6 +269,7 @@ const UI = {
     sortsX: { "locs:desc": "Most locations", "name:asc": "Name, A to Z", "rankLevel:desc": "Rank, high to low",
       "nadv:desc": "Most country advances", "cont:asc": "Continent", "cul:asc": "Culture" },
     fixedNote: "This nation has no tier: it isn't in the formable list, so it can't be formed. You can only play it from the start.",
+    startTier: l => `If you start as this nation, you are already tier ${l}: you can only form a nation above tier ${l}.`,
     otherFound: (n, fx) => `${n} more in the ${fx ? "formable" : "can't be formed"} list`, otherShow: "Show",
     twinBadge: t => `≠ formable ${t}`, twinOpen: "Open",
     twinFixedNote: (n, t) => `Not the same as the formable nation ${n} (${t}): a different tag with the same name.`,
@@ -490,7 +492,7 @@ function openDetail(id, push = true) {
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
       <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
       <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span><button class="close" type="button" id="close">${esc(t.close)}</button></div>
-    ${i.start ? `<p class="muted small">${esc(t.startNote)}</p>` : ""}
+    ${i.start ? `<p class="muted small">${esc(t.startNote)} ${esc(t.startTier(i.level))}</p>` : ""}
     ${i.twinFixed ? `<p class="small">${esc(t.twinFormNote(i.twinFixed.tag))} <button type="button" class="dbtn" data-open="${esc(i.twinFixed.id)}">${esc(t.twinOpen)}</button></p>` : ""}
     ${i.desc ? `<p class="desc clamp" title="${esc(t.descr)}">${esc(i.desc)}</p>` : ""}
     <div class="cards">
