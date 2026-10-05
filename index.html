@@ -248,7 +248,7 @@ ul.tree li { margin: 3px 0; overflow-wrap: anywhere; }
 
 <script>
 const EMBED = null;
-const DATA_REV = "509a7a0c2d"; // changes on every build so browsers never mix a new page with old data
+const DATA_REV = "05849ad6ab"; // changes on every build so browsers never mix a new page with old data
 const LANGS = { english: "English", russian: "Русский", german: "Deutsch", french: "Français", spanish: "Español",
   braz_por: "Português (Brasil)", polish: "Polski", turkish: "Türkçe", japanese: "日本語", korean: "한국어", simp_chinese: "简体中文" };
 const BROWSER = { en: "english", ru: "russian", de: "german", fr: "french", es: "spanish", pt: "braz_por", pl: "polish",
@@ -280,22 +280,22 @@ const UI = {
     langFilter: "Язык", clearFilter: "Сбросить", tabNames: { f: "Формируемые", x: "Без тира", c: "Культуры", r: "Религии" }, listTitle: "Список", tabs: { f: n => `Формируемые · ${n}`, x: n => `Нельзя сформировать · ${n}`, c: n => `Культуры · ${n}` },
     listNames: { f: "формируемые", x: "нельзя сформировать", c: "культуры", r: "религии" }, cgroup: "Группа культур", rgroupL: "Группа религий",
     colRelName: "Религия", statsR: n => `${n} религий: их улучшения, какие страны с ними можно сформировать и где они на старте`,
-    sortsR: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формируемых", "nst:desc": "Больше всего стран на старте",
+    sortsR: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формаблов с условием", "nst:desc": "Больше всего стран на старте",
       "name:asc": "Название — А→Я", "cont:asc": "Группа" },
     radvTitle: n => `Религиозные улучшения · ${n}`, radvNote: "Открываются в дереве развития, пока это религия вашей страны.",
-    rformsTitle: n => `Формируемые страны, которым подходит эта религия · ${n}`,
+    rformsTitle: n => `Формаблы с условием на эту религию · ${n}`, rformsAny: n => `Ещё ${n} формаблов не требуют религии — их может сформировать страна любой религии.`,
     rformsNone: "Нет формируемых стран, которым нужна именно эта религия (страны без требований к религии доступны всем).",
     rstartTitle: n => `Страны с этой религией на старте · ${n}`, rstartNone: "Ни одна страна не начинает с этой религией.",
     relTitle: "Нужные религии", relAny: "Подходит любая религия — условий по религии нет.",
     rgrTitle: n => `Общие улучшения группы религий · ${n}`, rgrNote: "Их получает любая религия этой группы.",
     rgrNone: "У этой группы нет общих улучшений.", rgrMembers: n => `Религии группы · ${n}`, rgrShow: "Показать религии группы в таблице",
     rgrKind: "Группа религий", relGroupL: "Группа",
-    colCulName: "Культура", colGroup: "Группа", colLang: "Язык", colForms: "Может сформировать", colStart: "Стран на старте",
+    colCulName: "Культура", colGroup: "Группа", colLang: "Язык", colForms: "Формаблы с условием", colStart: "Стран на старте",
     statsC: n => `${n} культур: их улучшения, какие страны они могут сформировать и где они на старте`,
-    sortsC: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формируемых", "nst:desc": "Больше всего стран на старте",
+    sortsC: { "nadv:desc": "Больше всего улучшений", "nforms:desc": "Больше всего формаблов с условием", "nst:desc": "Больше всего стран на старте",
       "name:asc": "Название — А→Я", "cont:asc": "Группа" },
     cadvTitle: n => `Культурные улучшения · ${n}`, cadvNote: "Открываются в дереве развития, пока эта культура — основная культура вашей страны.",
-    formsTitle: n => `Может сформировать · ${n}`, formsNone: "Нет формируемых стран, которым нужна именно эта культура (страны без требований к культуре доступны всем).",
+    formsTitle: n => `Формаблы с условием на эту культуру · ${n}`, formsAny: n => `Ещё ${n} формаблов не требуют культуры — их может сформировать страна любой культуры.`, formsNone: "Нет формируемых стран, которым нужна именно эта культура (страны без требований к культуре доступны всем).",
     startTitle: n => `Страны с этой культурой на старте · ${n}`, startNone: "Ни одна страна не начинает с этой культурой.",
     culTitle: "Нужные культуры", culAny: "Подходит любая культура — условий по культуре нет.", culMore: n => `и ещё ${n}`,
     groupsL: "Группы", langL: "Язык",
@@ -356,22 +356,22 @@ const UI = {
     langFilter: "Language", clearFilter: "Clear", tabNames: { f: "Formable", x: "Can't be formed", c: "Cultures", r: "Religions" }, listTitle: "List", tabs: { f: n => `Formable · ${n}`, x: n => `Can't be formed · ${n}`, c: n => `Cultures · ${n}` },
     listNames: { f: "formable", x: "can't be formed", c: "cultures", r: "religions" }, cgroup: "Culture group", rgroupL: "Religion group",
     colRelName: "Religion", statsR: n => `${n} religions: their advances, which nations they can form and where they start`,
-    sortsR: { "nadv:desc": "Most advances", "nforms:desc": "Most formable nations", "nst:desc": "Most starting nations",
+    sortsR: { "nadv:desc": "Most advances", "nforms:desc": "Most formables requiring it", "nst:desc": "Most starting nations",
       "name:asc": "Name, A to Z", "cont:asc": "Group" },
     radvTitle: n => `Religious advances · ${n}`, radvNote: "Available in the advance tree while this is your nation's religion.",
-    rformsTitle: n => `Formable nations this religion fits · ${n}`,
+    rformsTitle: n => `Formables that require this religion · ${n}`, rformsAny: n => `${n} more formables have no religion requirement: a nation of any religion can form them.`,
     rformsNone: "No formable nation requires this religion specifically (nations without religion requirements are open to all).",
     rstartTitle: n => `Nations with this religion at the start · ${n}`, rstartNone: "No nation starts with this religion.",
     relTitle: "Required religions", relAny: "Any religion: there are no religion conditions.",
     rgrTitle: n => `Shared religion group advances · ${n}`, rgrNote: "Every religion in this group gets these.",
     rgrNone: "This group has no shared advances.", rgrMembers: n => `Religions in the group · ${n}`, rgrShow: "Show the group's religions in the table",
     rgrKind: "Religion group", relGroupL: "Group",
-    colCulName: "Culture", colGroup: "Group", colLang: "Language", colForms: "Can form", colStart: "Nations at start",
+    colCulName: "Culture", colGroup: "Group", colLang: "Language", colForms: "Formables requiring it", colStart: "Nations at start",
     statsC: n => `${n} cultures: their advances, which nations they can form and where they start`,
-    sortsC: { "nadv:desc": "Most advances", "nforms:desc": "Most formable nations", "nst:desc": "Most starting nations",
+    sortsC: { "nadv:desc": "Most advances", "nforms:desc": "Most formables requiring it", "nst:desc": "Most starting nations",
       "name:asc": "Name, A to Z", "cont:asc": "Group" },
     cadvTitle: n => `Culture advances · ${n}`, cadvNote: "Available in the advance tree while this is your nation's primary culture.",
-    formsTitle: n => `Can form · ${n}`, formsNone: "No formable nation requires this culture specifically (nations without culture requirements are open to all).",
+    formsTitle: n => `Formables that require this culture · ${n}`, formsAny: n => `${n} more formables have no culture requirement: a nation of any culture can form them.`, formsNone: "No formable nation requires this culture specifically (nations without culture requirements are open to all).",
     startTitle: n => `Nations with this culture at the start · ${n}`, startNone: "No nation starts with this culture.",
     culTitle: "Required cultures", culAny: "Any culture: there are no culture conditions.", culMore: n => `and ${n} more`,
     groupsL: "Groups", langL: "Language",
@@ -689,7 +689,7 @@ function openReligion(r, push) {
     <p class="small"><span class="muted">${esc(t.relGroupL)}:</span> <button type="button" class="linkchip" data-open="rgr.${esc(r.gk)}">${esc(r.group)}</button></p>
     <div class="cards">
       ${advances({ adv: r.advObjs, tag: "", name: r.name }, t.radvTitle(r.advObjs.length), t.radvNote)}
-      <div class="card wide"><h3>${esc(t.rformsTitle(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.rformsNone)}</div>`}</div>
+      <div class="card wide"><h3>${esc(t.rformsTitle(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.rformsNone)}</div>`}<div class="muted small">${esc(t.rformsAny(items.filter(f => f.rel == null).length))}</div></div>
       <div class="card wide"><h3>${esc(t.rstartTitle(st.length))}</h3>${st.length ? linkChips(st, 150) : `<div class="muted">${esc(t.rstartNone)}</div>`}</div>
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
@@ -750,7 +750,7 @@ function openCulture(c, push) {
       · <span class="muted">${esc(t.langL)}:</span> ${c.lang ? `<button type="button" class="linkchip" data-lang="${esc(c.lang)}">${esc(c.lang)}</button>` : "—"}${c.dia ? ` <span class="muted">(${esc(c.dia.toLowerCase())})</span>` : ""}</p>
     <div class="cards">
       ${advances({ adv: c.advObjs, tag: "", name: c.name }, t.cadvTitle(c.advObjs.length), t.cadvNote)}
-      <div class="card wide"><h3>${esc(t.formsTitle(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.formsNone)}</div>`}</div>
+      <div class="card wide"><h3>${esc(t.formsTitle(forms.length))}</h3>${forms.length ? linkChips(forms) : `<div class="muted">${esc(t.formsNone)}</div>`}<div class="muted small">${esc(t.formsAny(items.filter(f => f.cul == null).length))}</div></div>
       <div class="card wide"><h3>${esc(t.startTitle(st.length))}</h3>${st.length ? linkChips(st) : `<div class="muted">${esc(t.startNone)}</div>`}</div>
     </div>`;
   d.classList.add("open"); $("#backdrop").hidden = false; d.scrollTop = 0;
