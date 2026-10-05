@@ -800,27 +800,35 @@ function openFixed(i, push) {
   $("#close").focus({ preventScroll: true });
 }
 
+// a link from a card into another list: that list starts unfiltered, so the opened row is always in it
+function switchList(m) {
+  state.mode = m; state.q = ""; state.cont = ""; state.clang = ""; state.tiers.clear(); state.rules.clear();
+  FLAGS.forEach(f => { state[f] = false; $("#" + f).checked = false; });
+  $("#q").value = ""; $("#cont").value = "";
+  document.querySelectorAll("#tiers .chip, #rules .chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+  paintChrome();
+}
 function openDetail(id, push = true) {
   const t = u();
   const i = items.find(x => x.id === id), d = $("#drawer");
   if (id.startsWith("rgr.") && DATA.rgrByKey[id.slice(4)]) {
-    if (!relMode()) { state.mode = "r"; state.cont = ""; paintChrome(); render(); }
+    if (!relMode()) { switchList("r"); render(); }
     state.sel = null; openRGroup(DATA.rgrByKey[id.slice(4)], push); return;
   }
   if (id.startsWith("rel.") && DATA.relByKey[id.slice(4)]) {
-    state.sel = id; if (!relMode()) { state.mode = "r"; state.cont = ""; paintChrome(); }
+    state.sel = id; if (!relMode()) { switchList("r"); }
     openReligion(DATA.relByKey[id.slice(4)], push); return;
   }
   if (id.startsWith("geo.") && DATA.geo && DATA.geo[id.slice(4)]) { state.sel = null; openGeo(id.slice(4), push); return; }
   if (id.startsWith("grp.")) {
     const g = DATA.grpByKey[id.slice(4)];
-    if (g) { if (!cultMode()) { state.mode = "c"; state.cont = ""; paintChrome(); render(); } state.sel = null; openGroup(g, push); return; }
+    if (g) { if (!cultMode()) { switchList("c"); render(); } state.sel = null; openGroup(g, push); return; }
   }
   const cu = !i && (DATA.cultures || []).find(x => x.id === id);
-  if (cu) { state.sel = id; if (!cultMode()) { state.mode = "c"; state.cont = ""; paintChrome(); } openCulture(cu, push); return; }
+  if (cu) { state.sel = id; if (!cultMode()) { switchList("c"); } openCulture(cu, push); return; }
   const fx = !i && (DATA.fixed || []).find(x => x.id === id);
-  if (fx) { state.sel = id; if (!fixedMode()) { state.mode = "x"; state.cont = ""; paintChrome(); } openFixed(fx, push); return; }
-  if (i && state.mode !== "f") { state.mode = "f"; state.cont = ""; paintChrome(); }
+  if (fx) { state.sel = id; if (!fixedMode()) { switchList("x"); } openFixed(fx, push); return; }
+  if (i && state.mode !== "f") { switchList("f"); }
   if (!i) { closeDetail(); return; }
   state.sel = id;
   const pct = Math.round(i.frac * 100);
@@ -903,7 +911,7 @@ $("#rows").addEventListener("click", e => {
 $("#count").addEventListener("click", e => { if (e.target.closest("#clearLang")) { state.clang = ""; render(); } });
 function filterLang(name) {
   if (state.sel) closeDetail();
-  if (!cultMode()) { state.mode = "c"; state.cont = ""; paintChrome(); }
+  if (!cultMode()) { switchList("c"); }
   state.clang = name; render();
 }
 function filterGroup(name) {
