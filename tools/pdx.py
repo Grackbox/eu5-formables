@@ -99,6 +99,9 @@ def clean(s, loc, depth=0):
     # [ShowAreaName('balearics_area')], [ShowScriptedGeographyNameWithNoTooltip('x')], ... -> localized name
     s = re.sub(r"\[Show\w*?Name(?:WithNoTooltip)?\('([\w.]+)'\)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
+    # [ShowReligionAdjective('catholic')], [ShowReligionGroupAdjective('x')] -> the key's _ADJ text
+    s = re.sub(r"\[Show\w*?Adjective(?:WithNoTooltip)?\('([\w.]+)'\)\|?\w*\]",
+               lambda m: clean(loc.get(m.group(1) + "_ADJ") or loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
     # [GetCountry('MLL').GetAdjective] / .GetName... / .GetLongName...
     s = re.sub(r"\[GetCountry\('(\w+)'\)\.(GetAdjective|Get\w*Name\w*)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "GetAdjective" else ""), m.group(1)), loc, depth + 1), s)

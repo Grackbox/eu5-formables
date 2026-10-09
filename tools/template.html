@@ -445,14 +445,15 @@ function prepare() {
   const flat = n => n.t + " " + (n.c || []).map(flat).join(" ");
   for (const it of items) {
     it.variant = nameCount[it.name] > 1 ? variantName(it) : "";
-    it.hay = [it.name, it.tag, it.cont, ...Object.values(it.terr).flat().map(e => e.n), ...it.pot.map(flat), ...it.allow.map(flat),
+    it.hay = [it.name, it.cname, it.tag, it.cont, ...Object.values(it.terr).flat().map(e => e.n), ...it.pot.map(flat), ...it.allow.map(flat),
       ...it.adv.map(a => a.n), ...(it.ref || []).map(r => r.n)].join(" ").toLowerCase();
     it.rankLevel = Math.max(0, ...it.ranks.map(r => DATA.ranks[r]?.level || 0));
   }
   const byName = {};
   for (const it of items) (byName[it.name] ||= []).push(it);
-  for (const it of DATA.fixed || []) it.twin = (byName[it.name] || [])[0] || null;
-  for (const it of items) it.twinFixed = (DATA.fixed || []).find(x => x.name === it.name) || null;
+  for (const it of items) if (it.cname !== it.name) (byName[it.cname] ||= []).push(it);
+  for (const it of DATA.fixed || []) it.twin = (byName[it.name] || []).find(x => x.tag !== it.tag) || null;
+  for (const it of items) it.twinFixed = (DATA.fixed || []).find(x => x.tag !== it.tag && (x.name === it.name || x.name === it.cname)) || null;
   DATA.relByKey = {}; DATA.rgrByKey = {};
   for (const g of DATA.rgroups || []) DATA.rgrByKey[g.key] = g;
   for (const r of DATA.religions || []) {
@@ -587,7 +588,7 @@ function render() {
   } else $("#rows").innerHTML = list.map(i => `
     <tr data-id="${esc(i.id)}" class="${state.sel === i.id ? "sel" : ""}" tabindex="0">
       <td><div class="name"><span class="sw" style="background:${i.color || "transparent"}"></span><div><div class="nm">${esc(i.name)}</div>
-        <div class="tag">${esc(i.tag)}${i.start ? `<span class="variant">${esc(t.startBadge)}</span>` : ""}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
+        <div class="tag">${esc(i.tag)}${i.cname !== i.name ? ` · ${esc(i.cname)}` : ""}${i.start ? `<span class="variant">${esc(t.startBadge)}</span>` : ""}${i.variant ? `<span class="variant">${esc(t.variant)} ${esc(i.variant)}</span>` : ""}</div></div></div></td>
       <td><span class="tier t${i.level}">${i.level}</span></td>
       <td><span class="rule">${esc(t.rules[i.rule] || i.rule)}</span></td>
       <td>${contCell(i)}</td>
@@ -847,7 +848,7 @@ function openDetail(id, push = true) {
     `<div class="card"><h3>${esc(t.rankBonus(r.name))}</h3><ul class="tree">${r.mods.map(m => `<li class="k-good"><span>${esc(m)}</span></li>`).join("")}</ul></div>`).join("");
   d.innerHTML = `
     <div class="dhead"><span class="sw" style="background:${i.color || "transparent"}"></span><h2 id="dtitle">${esc(i.name)}</h2>
-      <span class="tag">${esc(i.tag)} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
+      <span class="tag">${esc(i.tag)}${i.cname !== i.name ? ` · ${esc(i.cname)}` : ""} · ${esc(i.id)}</span><span class="tier t${i.level}">${esc(t.tierN(i.level))}</span>
       <span class="rule">${esc(t.rules[i.rule] || i.rule)}</span>${backBtn()}<button class="close" type="button" id="close">${esc(t.close)}</button></div>
     ${i.start ? `<p class="muted small">${esc(t.startNote)} ${esc(t.startTier(i.level))}</p>` : ""}
     ${i.twinFixed ? `<p class="small">${esc(t.twinFormNote(i.twinFixed.tag))} <button type="button" class="dbtn" data-open="${esc(i.twinFixed.id)}">${esc(t.twinOpen)}</button></p>` : ""}

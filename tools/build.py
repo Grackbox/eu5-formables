@@ -879,8 +879,9 @@ def build_lang(lang):
         pot_raw = get(b, "potential") or []
         by_event = [(k2, v2) for k2, _, v2 in pot_raw] == [("always", "no")]
         adv = advances(tag)
+        cname = L(get(b, "name", tag), tag)  # the country's name; the formable has its own ("Latin Empire" for Constantinople)
         items.append({
-            "id": fid, "tag": tag, "name": L(get(b, "name", tag), tag),
+            "id": fid, "tag": tag, "name": L(fid, cname), "cname": cname,
             "level": int(get(b, "level", "1")), "rule": get(b, "rule", "historical"),
             "frac": frac, "cap": get(b, "capital_required", "yes") != "no",  # 1.4 default: capital must be inside
             "own": get(b, "potential_requires_own", "yes") != "no",
