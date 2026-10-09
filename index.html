@@ -316,6 +316,7 @@ const UI = {
     tierChip: (l, n) => `Тир ${l} · ${n}`, startBadge: "есть на старте",
     startNote: "Эта страна существует на старте 1337 года. Сформировать её можно, когда её не станет и ваша страна подойдёт под условия (культуру и столицу можно сменить).", locs: (a, b, p) => `${a} из ${b} лок. · ${p}%`, eventOnly: "только событием или решением",
     special: "особые эффекты", variant: "вариант",
+    variants: { REDUCED_REQUIREMENTS: "сниженные требования", trebizond: "Трапезунд", high_kingship: "верховное королевство", lordship_of_ireland: "лордство Ирландия" },
     helpTitle: "Что такое тир, правило и бонусы ранга",
     help: `<p><b>Тир</b> — уровень формируемой страны (<code>level</code>, от 1 до 5). Сформировать можно только страну более высокого тира, чем текущая.</p>
       <p><b>Правило</b> — в какой игровой настройке страна доступна: историческое — всегда, правдоподобное и фантазийное — если они разрешены в правилах игры.</p>
@@ -392,6 +393,7 @@ const UI = {
     tierChip: (l, n) => `Tier ${l} · ${n}`, startBadge: "exists at start",
     startNote: "This nation exists at the 1337 start. You can form it once it no longer exists and your nation meets the conditions (culture and capital can be changed).", locs: (a, b, p) => `${a} of ${b} loc. · ${p}%`, eventOnly: "event or decision only",
     special: "special effects", variant: "variant",
+    variants: { REDUCED_REQUIREMENTS: "reduced requirements", trebizond: "Trebizond", lordship_of_ireland: "Lordship of Ireland" },
     helpTitle: "What tier, rule and rank bonuses mean",
     help: `<p><b>Tier</b> is the formable's level (<code>level</code>, 1 to 5). You can only form a nation of a higher tier than your current one.</p>
       <p><b>Rule</b> is the game setting that allows it: historical ones are always available, plausible and fantasy ones only when the game rules allow them.</p>
@@ -435,13 +437,21 @@ async function loadLang(l) {
   return (cache[l] = await r.json());
 }
 
+// "THE_REDUCED_REQUIREMENTS_f" -> "reduced requirements"; the main variant gets no label unless its tag tells it apart
+function variantName(it) {
+  const t = u(), key = it.id.replace(/_f$/, "");
+  if (key === it.tag) return items.some(x => x !== it && x.name === it.name && x.tag === it.tag) ? "" : it.tag;
+  const rest = key.startsWith(it.tag + "_") ? key.slice(it.tag.length + 1) : key;
+  const other = items.find(x => x.tag === rest);
+  return t.variants[rest] || (other ? other.name : rest.replace(/_/g, " ").toLowerCase());
+}
 function prepare() {
   items = DATA.items;
   const nameCount = {};
   for (const it of items) nameCount[it.name] = (nameCount[it.name] || 0) + 1;
   const flat = n => n.t + " " + (n.c || []).map(flat).join(" ");
   for (const it of items) {
-    it.variant = nameCount[it.name] > 1 ? it.id.replace(/_f$/, "") : "";
+    it.variant = nameCount[it.name] > 1 ? variantName(it) : "";
     it.hay = [it.name, it.tag, it.cont, ...Object.values(it.terr).flat().map(e => e.n), ...it.pot.map(flat), ...it.allow.map(flat),
       ...it.adv.map(a => a.n), ...(it.ref || []).map(r => r.n)].join(" ").toLowerCase();
     it.rankLevel = Math.max(0, ...it.ranks.map(r => DATA.ranks[r]?.level || 0));
