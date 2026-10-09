@@ -94,10 +94,25 @@ def clean(s, loc, depth=0):
         s = re.sub(r'\$([A-Za-z0-9_\.]+)\$', lambda m: clean(loc.get(m.group(1), m.group(1)), loc, depth + 1), s)
     s = re.sub(r"@\[[^\]]*\]!", "", s)  # inline flags/icons
     s = re.sub(r"\[Concept\('[^']*',\s*'([^']*)'\)\|?\w*\]", r"\1", s)
-    s = re.sub(r"\[GetCountry\('(\w+)'\)\.Custom\('CL_ACC'\)\|?\w*\]",
-               lambda m: clean(loc.get(m.group(1) + "_RU_ACC_CL") or loc.get(m.group(1), m.group(1)), loc, depth + 1), s)
+    # Russian cases: [GetCountry('X').Custom('CL_GEN')] -> X_RU_GEN_CL; CL_tt (tooltip form) -> the plain name
+    s = re.sub(r"\[GetCountry\('(\w+)'\)\.Custom\('CL_(\w+)'\)\|?\w*\]",
+               lambda m: clean(loc.get(f"{m.group(1)}_RU_{m.group(2)}_CL") or loc.get(m.group(1), m.group(1)), loc, depth + 1), s)
+    # endrank_fem follows GetFlavorRank, which becomes the feminine "держава" below
+    s = re.sub(r"\[GetCountry\('\w+'\)\.Custom\('endrank_fem'\)\]", "а", s)
+    # other Russian endings follow the country's rank in the running game: dropped, as the game does when it has none
+    s = re.sub(r"\[GetCountry\('\w+'\)\.Custom\('end\w*'\)\]", "", s)
+    # [Select_CString(GetCharacter('x').IsFemale, 'правила', 'правил' )] -> the form for that character's sex
+    s = re.sub(r"\[Select_CString\(\s*(?:GetCharacter\('(\w+)'\)\.|[\w.]*?)IsFemale\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*\)\]",
+               lambda m: m.group(2) if loc.get("__char_female." + (m.group(1) or "")) else m.group(3), s)
+    # [GetCharacter('fra_charlemagne').GetName] -> "Charles the Great", from the names build.py puts in loc
+    s = re.sub(r"\[GetCharacter\('(\w+)'\)\.Get(Name|Nickname)\w*\|?\w*\]",
+               lambda m: loc.get(("__char_nick." if m.group(2) == "Nickname" else "__char_name.") + m.group(1), m.group(1).replace("_", " ")), s)
+    # [GetCountry('THE').GetFlavorRank] depends on the country's current rank: a generic "country"
+    s = re.sub(r"\[GetCountry\('\w+'\)\.GetFlavorRank\|?\w*\]", lambda m: loc.get("game_concept_country", "country").lower(), s)
+    # [ROOT.GetCountry.GetGovernment.GetEstateNameWithNoTooltip('clergy_estate')] -> the key's text
+    s = re.sub(r"\[ROOT[\w.]*\.Get\w*Name\w*\('(\w+)'\)\|?\w*\]", lambda m: clean(loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
     # [ShowAreaName('balearics_area')], [ShowScriptedGeographyNameWithNoTooltip('x')], ... -> localized name
-    s = re.sub(r"\[Show\w*?Name(?:WithNoTooltip)?\('([\w.]+)'\)\|?\w*\]",
+    s = re.sub(r"\[Show\w*?Name(?:WithNoTooltip)?\('?([\w.]+)'?\)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1), m.group(1).replace("_", " ")), loc, depth + 1), s)
     # [ShowReligionAdjective('catholic')], [ShowReligionGroupAdjective('x')] -> the key's _ADJ text
     s = re.sub(r"\[Show\w*?Adjective(?:WithNoTooltip)?\('([\w.]+)'\)\|?\w*\]",
@@ -106,7 +121,8 @@ def clean(s, loc, depth=0):
     s = re.sub(r"\[GetCountry\('(\w+)'\)\.(GetAdjective|Get\w*Name\w*)\|?\w*\]",
                lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "GetAdjective" else ""), m.group(1)), loc, depth + 1), s)
     # [GetUniqueInternationalOrganization('x').GetName], [GetReligion('x').GetAdjective], ... -> localized key
-    s = re.sub(r"\[Get\w+\('(\w+)'\)\.Get(Name|Adjective|LongName)\w*\|?\w*\]",
+    # (the Spanish HAB_f_desc closes the key with a typographic quote: 'hre”)
+    s = re.sub(r"\[Get\w+\('(\w+)['”]\)\.Get(Name|Adjective|LongName)\w*\|?\w*\]",
                lambda m: clean(loc.get(m.group(1) + ("_ADJ" if m.group(2) == "Adjective" and m.group(1) + "_ADJ" in loc else ""),
                                        m.group(1).replace("_", " ")), loc, depth + 1), s)
     # [capital|e] -> the game concept's name

@@ -197,6 +197,13 @@ for f in glob.glob(G + "in_game/common/script_values/*.txt") + glob.glob(G + "ma
         if k and isinstance(v, str) and re.fullmatch(r"-?\d+(\.\d+)?", v):
             script_values[k] = float(v)
 
+# historical characters that descriptions name with [GetCharacter('x').GetName]: first name and nickname keys
+characters = {}
+for _k, _, _v in get(P(G + "main_menu/setup/1337/05_characters.txt"), "character_db") or []:
+    if isinstance(_v, list):
+        _fn, _nn = get(_v, "first_name"), get(_v, "nickname")
+        characters[_k] = (get(_fn, "name") if isinstance(_fn, list) else _fn, get(_nn, "name") if isinstance(_nn, list) else _nn,
+                          get(_v, "female") == "yes")
 rank_src = [(k, v) for k, _, v in P(G + "in_game/common/country_ranks/00_default.txt") if k and isinstance(v, list)]
 rank_level = {k: int(get(v, "level", "1")) for k, v in rank_src}
 
@@ -801,6 +808,14 @@ def build_lang(lang):
     loc = load_loc([G + f"main_menu/localization/{lang}", G + f"in_game/localization/{lang}"])
     if not loc_en:
         loc_en = load_loc([G + "main_menu/localization/english"])
+    for k, (fn, nn, fem) in characters.items():
+        if fem: loc["__char_female." + k] = "1"
+        # nicknames pick their form by sex: "[Select_CString(Character.IsFemale, 'Великая', 'Великий' )]",
+        # in Polish "Wielk[Select_CString(ROOT.GetCountry.GetGovernment.GetRuler.IsFemale,'a','i')]"
+        name = lambda x: clean(re.sub(r"[\w.]*IsFemale", f"GetCharacter('{k}').IsFemale",
+                                      loc.get(x) or loc_en.get(x) or x.replace("_", " ")), loc) if x else ""
+        loc["__char_nick." + k] = name(nn)
+        loc["__char_name." + k] = " ".join(filter(None, [name(fn), name(nn)]))
 
     ranks = {}
     for k, v in rank_src:
